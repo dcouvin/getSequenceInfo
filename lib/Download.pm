@@ -4,7 +4,7 @@ use warnings;
 
 use Exporter qw(import);
 
-our @EXPORT = qw(download_file obtain_file clean_repository);
+our @EXPORT = qw(download_file obtain_file);
 
 # connect and download file from ftp servor
 sub download_file {
@@ -24,12 +24,8 @@ sub download_file {
 # obtain file directory
 sub obtain_file {
 	my($servor, $link) = @_;
-	if ($link =~ /$servor(.*)/) {return ($1);}
+	if ($link =~ /$servor(.*)/) { return ($1); }
 }
-#------------------------------------------------------------------------------
-#   delete all compress folder download
-sub clean_repository {
-	unlink glob "*.gz *.dmp"  or die "$!: for file *.gz *.dmp";
-}
+
 
 1;

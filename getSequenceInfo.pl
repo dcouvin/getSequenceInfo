@@ -3,6 +3,7 @@
 use strict;
 use warnings;
 
+use Archive::Tar;
 use File::Basename qw(dirname);
 use Cwd  qw(abs_path);
 use lib dirname(abs_path $0) . '/lib';
@@ -10,10 +11,10 @@ use Bio::SeqIO;
 use Bio::Species;
 use Date::Calc qw(:all);
 use File::Copy qw(cp move);
-use LWP::Simple qw(get);
+use File::Path qw(rmtree);
 use Net::FTP;
+use Treatment;
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
- use Archive::Tar;
 use Writing;
 use Download;
 
@@ -33,17 +34,17 @@ print "## version : 1.0\n";
 print "## « Copyright 2019 David Couvin, Moco Vincent »\n";
 print "## licence GPL-3.0-or-later\n";
 print "## This program is free software: you can redistribute it and/or modify\n";
-print "##  it under the terms of the GNU General Public License as published by\n";
-print "##  the Free Software Foundation, either version 3 of the License, or\n";
+print "## it under the terms of the GNU General Public License as published by\n";
+print "## the Free Software Foundation, either version 3 of the License, or\n";
 print "##  (at your option) any later version.\n";
 print "##\n";
-print "##  This program is distributed in the hope that it will be useful,\n";
-print "##  but WITHOUT ANY WARRANTY; without even the implied warranty of\n";
-print "##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n";
-print "##  GNU General Public License for more details.\n";
+print "## This program is distributed in the hope that it will be useful,\n";
+print "## but WITHOUT ANY WARRANTY; without even the implied warranty of\n";
+print "## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n";
+print "## GNU General Public License for more details.\n";
 print "##\n";
-print "##  You should have received a copy of the GNU General Public License\n";
-print "##  along with this program.  If not, see <https://www.gnu.org/licenses/>. 1\n";
+print "## You should have received a copy of the GNU General Public License\n";
+print "## along with this program.  If not, see <https://www.gnu.org/licenses/>. 1\n";
 print "##################################################################\n\n";
 
 # parameters
@@ -67,7 +68,15 @@ my $quantity; # number of sequences to download
 
 my $sequenceID;
 
-my $ftpServor = "ftp.ncbi.nlm.nih.gov"; 
+my $ftpServor = "ftp.ncbi.nlm.nih.gov";
+
+my $fldSep = ""; # folder seperation change by OS 
+
+my @availableKingdoms = ("archaea","bacteria","fungi","invertebrate", "plant", "protozoa", 
+						"vertebrate_mammalian", "vertebrate_other", "viral");  # list of available kingdoms
+		
+my $actualOS = ""; # OS of the computer
+
 
 if (@ARGV<1) {
 	help_user_simple($0);
@@ -86,47 +95,65 @@ if ($ARGV[0] eq "-version" || $ARGV[0] eq "-v") {
 
 # requirements
 for (my $i=0; $i<=$#ARGV; $i++) {
-    	if ($ARGV[$i]=~/-kingdom/ or $ARGV[$i]=~/-k/) {
-			$kingdoms = $ARGV[$i+1];
-    	}
-    	elsif ($ARGV[$i]=~/-directory/ or $ARGV[$i]=~/-dir/) {
-      		$directory = $ARGV[$i+1];
-    	}
-    	elsif ($ARGV[$i]=~/-date/) {
-      		$releaseDate = $ARGV[$i+1];
-    	}
-		elsif ($ARGV[$i]=~/-getSummary/ or $ARGV[$i]=~/-get/) {
-		if (-e "assembly_summary.txt") { system("rm -f assembly_summary.txt");}
-      		$getSummary = 1;
-    	}
-		elsif ($ARGV[$i]=~/-species/ or $ARGV[$i]=~/-s/ or $ARGV[$i]=~/-S/) {
-			$species = $ARGV[$i+1];
-			$species =~ tr/ /_/;
-		}
-		elsif ($ARGV[$i]=~/-representation/ or $ARGV[$i]=~/-r/ or $ARGV[$i]=~/-R/) {
-			$representation = $ARGV[$i+1];
-		}
-		elsif ($ARGV[$i]=~/-components/ or $ARGV[$i]=~/-c/ or $ARGV[$i]=~/-C/) {
-			$components = $ARGV[$i+1];
-		}
-		elsif ($ARGV[$i]=~/-quantity/ or $ARGV[$i]=~/-q/ or $ARGV[$i]=~/-Q/) {
-			$quantity = int($ARGV[$i+1]);
-		}
-		elsif ($ARGV[$i]=~/-ena/ or $ARGV[$i]=~/-ENA/) {
-			$sequenceID = $ARGV[$i+1];
-		}
+    if ($ARGV[$i]=~/-kingdom/ or $ARGV[$i]=~/-k/) {
+		$kingdoms = $ARGV[$i+1];
+    }
+    elsif ($ARGV[$i]=~/-directory/ or $ARGV[$i]=~/-dir/) {
+    	$directory = $ARGV[$i+1];
+    }
+    elsif ($ARGV[$i]=~/-date/) {
+    	$releaseDate = $ARGV[$i+1];
+    }
+	elsif ($ARGV[$i]=~/-getSummary/ or $ARGV[$i]=~/-get/) {
+		if (-e "assembly_summary.txt") { unlink "assembly_summary.txt" or die "$! fail";}
+    	$getSummary = 1;
+    }
+	elsif ($ARGV[$i]=~/-species/ or $ARGV[$i]=~/-s/ or $ARGV[$i]=~/-S/) {
+		$species = $ARGV[$i+1];
+		$species =~ tr/ /_/;
+	}
+	elsif ($ARGV[$i]=~/-representation/ or $ARGV[$i]=~/-r/ or $ARGV[$i]=~/-R/) {
+		$representation = $ARGV[$i+1];
+	}
+	elsif ($ARGV[$i]=~/-components/ or $ARGV[$i]=~/-c/ or $ARGV[$i]=~/-C/) {
+		$components = $ARGV[$i+1];
+	}
+	elsif ($ARGV[$i]=~/-quantity/ or $ARGV[$i]=~/-q/ or $ARGV[$i]=~/-Q/) {
+		$quantity = int($ARGV[$i+1]);
+	}
+	elsif ($ARGV[$i]=~/-ena/ or $ARGV[$i]=~/-ENA/) {
+		$sequenceID = $ARGV[$i+1];
+	}
 }
 
+# define folcer separator and OS
+if ($^O =~ /linux/) { 
+	$fldSep = "/";
+	$actualOS = "linux";
+}
+elsif ($^O =~ /MSWin32/) { 
+	$fldSep = "\\";
+	$actualOS	= "MSWin32";
+}
+
+
 # Table containing kingdoms individually
-my @kingdomTab = split(/,/, $kingdoms); 
+my @kingdomTab = split(/,/, $kingdoms);
+
+print "Working ...\n"; 
 
 foreach my $kingdom (@kingdomTab) {
 	$kingdom = lc($kingdom);
-	if ($kingdom eq "viruses") {$kingdom = "viral";}
-	get_assembly_summary_species($releaseDate, $directory, $kingdom, $species, $representation);	
+	
+	if ($kingdom eq "viruses") { $kingdom = "viral"; }
+	
+	if (grep(/^$kingdom$/, @availableKingdoms)) {
+		get_assembly_summary_species($releaseDate, $directory, $kingdom, 
+														$species, $representation, $fldSep, $actualOS);
+	}
 }
 
-if ($sequenceID) {sequence_ena($sequenceID);}
+if ($sequenceID) { sequence_ena($sequenceID); }
 
 my ($end_year,$end_month,$end_day, $end_hour,$end_min,$end_sec) = Today_and_Now();
 
@@ -134,7 +161,8 @@ my ($D_y,$D_m,$D_d, $Dh,$Dm,$Ds) =
       Delta_YMDHMS($start_year,$start_month,$start_day, $start_hour, $start_min, $start_sec,
                    $end_year, $end_month, $end_day, $end_hour,$end_min,$end_sec);
 
-
+print "End of process Date: $start_year-$start_month-$start_day, $start_hour:$start_min:$start_sec\n";
+print "Execution time: $Dh:$Dm:$Ds\n";
 
 ### subroutine 
 # display global help document
@@ -203,7 +231,10 @@ sub help_user_advance {
 		perl $0 -k "XXX"  -q 00  -r "XXX" -c chromosome -date  yyyy-mm-dd -get
 		
 		it is possible to use the -c option when only kingdom is mention
-		perl getSequenceInfo2.pl -k XXX -q 00 -r "XXX" -c XXX  -date yyyy-mm-dd
+		perl $0.pl -k XXX -q 00 -r "XXX" -c XXX  -date yyyy-mm-dd
+		
+		-ena allow to download report and fasta file by ena ID 
+		perl $0.pl -ena XXX
 		
 HEREDOC
 }
@@ -216,79 +247,108 @@ sub program_version {
 }
 #------------------------------------------------------------------------------
 sub get_assembly_summary_species {
-	my($releaseDate, $directory, $kingdom, $species, $representation) = @_;
+	my($releaseDate, $directory, $kingdom, $species, $representation, $fldSep, $actualOS) = @_;
 
 	# assembly_summary.txt file from NCBI FTP site
-	my $assembly_summary = "ftp://ftp.ncbi.nlm.nih.gov/genomes/$directory/$kingdom/assembly_summary.txt"; 
+	my $assemblySummary = "/genomes/$directory/$kingdom/assembly_summary.txt"; 
 	
 	# lineage folder
-	my $lineage_folder = "ftp.ncbi.nlm.nih.gov/pub/taxonomy/new_taxdump/new_taxdump.tar.gz";
+	my $lineage_file = "/pub/taxonomy/new_taxdump/new_taxdump.tar.gz";
 
 	# new assembly_summary information after modification
   	my $newAssemblySummary = "assembly_summary_$kingdom". $releaseDate.".tsv";
 
 	# Assembly semicolon kingdom file
 	my $newAssemblySemicolon = "assembly_semicolon_$kingdom".$releaseDate.".txt";
-
-	# get assembly_summary.txt
-	if ($getSummary) { system("wget $assembly_summary"); }
+	
+	# allow to check old summary download
+	my $oldKingdom = ""; 
+	
+	# print "before download summary\n";
+	
+	# check assembly summary download
+	if ($getSummary) { 
+		download_file($ftpServor, $assemblySummary);
+		open(KIN, ">", "kingdom.txt") or die "error open file $!:";
+		print KIN $kingdom;
+		close(KIN) or die "error close file $!:";
+	}
+	
+	elsif ($kingdom ne "" && $species eq  "") {
+		open(KIN, "<", "kingdom.txt") or die "error open file $!:";
+		$oldKingdom = trim(<KIN>);
+		close(KIN) or die "error close file $!:";
+		
+		if ($kingdom ne $oldKingdom) { 
+			download_file($ftpServor, $assemblySummary);
+			open(KIN, ">", "kingdom.txt") or die "error open file $!:";
+			print KIN $kingdom;
+			close(KIN) or die "error close file $!:";
+		}
+	}
+	# print "after download summary\n";
 	
 	# create $kingdomRep
-	my $holdRep = ""; # to check if Repository already exist
-	
+	# to check if Repository already exist
+	my $oldRep = ""; 
 	
 	my $kingdomRep = $kingdom."_".$start_year."_".$start_month."_".$start_day;
 	mkdir $kingdomRep unless -d $kingdomRep;
 	
-	
 	# Repository for Assembly
-	my $repositoryAssembly = "./assembly_repository_".$species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
+	my $repositoryAssembly = "assembly_repository_".$species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
+
 	mkdir $repositoryAssembly unless -d $repositoryAssembly;
 	
-	$holdRep = "./" . $kingdomRep . "/" . $repositoryAssembly;
-	if (-d $holdRep) { system("rm -rf $holdRep") }
+	$oldRep = "." . $fldSep . $kingdomRep . $fldSep . $repositoryAssembly;
+
+	if (-d $oldRep) { rmtree($oldRep) }
+	# print "after remove tree\n";
 	
 	my $specificRep; # Repository for required component
+	
 	my $plasmidsRep; # Repository for plasmids
+	
 	my $chromosomesRep; # Repository for chromosomes
+	
 	my $scaffoldsRep; # Repository for scaffolds
+	
 	my $contigsRep; # Repository for contigs
 	
 	if ($components) {
-		$specificRep = "./" . $components."_".$species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
+		$specificRep = $components."_".$species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
 		mkdir $specificRep unless -d $specificRep;
-	}
-	else {
-		$plasmidsRep = "./plasmids_". $species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
+	} else {
+		$plasmidsRep = "plasmids_". $species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
 		mkdir $plasmidsRep unless -d $plasmidsRep;
 	
-		$chromosomesRep = "./chromosomes_" . $species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
+		$chromosomesRep = "chromosomes_" . $species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
 		mkdir $chromosomesRep unless -d $chromosomesRep;
 		
-		$scaffoldsRep = "./scaffolds_" . $species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
+		$scaffoldsRep = "scaffolds_" . $species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
 		mkdir $scaffoldsRep unless -d $scaffoldsRep;
 		
-		$contigsRep = "./contigs_" . $species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
+		$contigsRep = "contigs_" . $species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
 		mkdir $contigsRep unless -d $contigsRep;
 	}	
 	
-	# Count how many assemblies and sequences were found with given criteria
-	# my $countAssemblies = 0;
-   	# my $countSequences = 0;
 	my %assemblyReportList;
+	# print "afer rep creation\n";
 	
 	if (-e "assembly_summary.txt") {
 		
-		# initialiaze tar manipulation
-		my $tar = Archive::Tar->new;
-		
-		# download taxdump folder
-		system("wget $lineage_folder");
-		$tar->read("new_taxdump.tar.gz");
-		$tar->extract_file("rankedlineage.dmp");
+		if ($actualOS eq "linux") {
+			# initialiaze tar manipulation
+			my $tar = Archive::Tar->new;
+	
+			# download taxdump folder
+			download_file($ftpServor, $lineage_file);
+			$tar->read("new_taxdump.tar.gz");
+			$tar->extract_file("rankedlineage.dmp");
+		}
 		
 		# Read file
-		open (SUM, "assembly_summary.txt") or die "open : $!";
+		open (SUM, "assembly_summary.txt") or die "open assembly_summary.txt : $!";
 		while(<SUM>) {
 			chomp;
 			my @tab = split('\t', $_);	
@@ -311,42 +371,42 @@ sub get_assembly_summary_species {
 						
 							if ($quantity) { $quantity -= 1; }
 							
-							#$genbankFile = obtain_file($ftpServor, $genbankFile);
-							#$dnaFile = obtain_file($ftpServor, $dnaFile);
-							#$assemblyReport = obtain_file($ftpServor, $assemblyReport);
+							$dnaFile = obtain_file($ftpServor, $dnaFile);
+							$genbankFile = obtain_file($ftpServor, $genbankFile);
+							$assemblyReport = obtain_file($ftpServor, $assemblyReport);
 							
-							# download_file($ftpServor, $dnaFile);
-							# download_file($ftpServor, $genbankFile);
-							#download_file($ftpServor, $assemblyReport);
+							download_file($ftpServor, $dnaFile);
+							download_file($ftpServor, $genbankFile);
+							download_file($ftpServor, $assemblyReport);
 							
 							# download sequences and check number of "N" characters
-							system("wget $dnaFile");
 							my $fileFasta = $gcfName."_genomic.fna.gz";
+							my $ucpFasta = $gcfName."_genomic.fna";
 							if (-e $fileFasta) {
-								system("gunzip $fileFasta");
-								$fileFasta = $gcfName."_genomic.fna";
+								gunzip $fileFasta => $ucpFasta or 
+										die "gunzip failed: $GunzipError\n";
+								move($ucpFasta, $repositoryAssembly) or die "move failed: $!";
 							}
-							move($fileFasta, $repositoryAssembly) or die "move failed: $!";
 							
 							# download genome report
 							my $fileReport =  $gcfName."_assembly_report.txt";
-							system("wget $assemblyReport");
 							if (-e $fileReport) {
-								system("gunzip $fileReport");
 								my $fileInformations = $gcfName."_informations.xls";
+								move($fileReport, $repositoryAssembly) or die "move failed: $!";
 							}
-							move($fileReport, $repositoryAssembly) or die "move failed: $!";
 						
 							# download genbank files
-							system("wget $genbankFile");
 							my $fileGenbank = $gcfName."_genomic.gbff.gz";
-							if (-e $fileGenbank) { system("gunzip $fileGenbank"); }
-							$fileGenbank = $gcfName."_genomic.gbff";
-							move($fileGenbank, $repositoryAssembly) or die "move failed: $!";
+							my $ucpGenbank = $gcfName."_genomic.gbff";
+							if (-e $fileGenbank) {
+								gunzip $fileGenbank => $ucpGenbank or 
+										die "gunzip failed: $GunzipError\n";
+								move($ucpGenbank, $repositoryAssembly) or die "move failed: $!";
+							}
 							
 							# association report and fasta
-							my $fileFasta_Genbank = $fileFasta . "," . $fileGenbank;
-							$assemblyReportList{$fileReport} = $fileFasta_Genbank;
+							my $fileFastaGenbank = $ucpFasta . "," . $ucpGenbank;
+							$assemblyReportList{$fileReport} = $fileFastaGenbank;
 						}
 					}
 				}	
@@ -356,103 +416,120 @@ sub get_assembly_summary_species {
 				last;
 			}
 		}
-		
 		close(SUM) or die("close file error $!");
 		
 		if (!keys %assemblyReportList) {
-			print "####################################################\n";
+			print "##################################################################\n";
 			print "Actual requirements are not found or are invalid for the database\n";
 			print "It could be an error on the species name or the date\n";
 			print "Check if the name is correctly write ex : Escherichia coli\n";
 			print "The date could be too advances try again with an earlier date\n";
 			print "Please try again with other requirements\n";
-			print "####################################################\n\n";
+			print "##################################################################\n\n";
 			exit();
 		}
 		
 		# write summary files 
 		my @keysList = keys(%assemblyReportList);
-		my $summary = "./summary.xls";
-		my $specific_summary;
-		my $plasmids_summary;
-		my $chromosomes_summary;
-		my $scaffolds_summary;
-		my $contigs_summary;
+		my $summary = "summary.xls";
+		my $htmlSummary = "summary.html";
+		my $specificSummary;
+		my $plasmidsSummary;
+		my $chromosomesSummary;
+		my $scaffoldsSummary;
+		my $contigsSummary;
 		
-		if ($components) { $specific_summary =  "./". $components . "_summary.xls"; }
-		else {
-			$plasmids_summary = "./plasmids_summary.xls";
-			$chromosomes_summary = "./chromosomes_summary.xls";
-			$scaffolds_summary = "./scaffolds_summary.xls";
-			$contigs_summary = "./contigs_summary.xls";
+		if ($components) { 
+			$specificSummary =  $components . "_summary.xls"; 
+		} else {
+			$plasmidsSummary = "plasmids_summary.xls";
+			$chromosomesSummary = "chromosomes_summary.xls";
+			$scaffoldsSummary = "scaffolds_summary.xls";
+			$contigsSummary = "contigs_summary.xls";
 		}
-		my $file_report = "./" . $repositoryAssembly ."/" . $keysList[0]; 
-		my @summary_list = ($plasmids_summary, $chromosomes_summary, $scaffolds_summary, $contigs_summary);
+		
+		my $fileReport = ".".$fldSep. $repositoryAssembly . $fldSep . $keysList[0]; 
+		
+		my @summary_list = ($plasmidsSummary, $chromosomesSummary, $scaffoldsSummary, $contigsSummary);
+		
 		my @header = ();
 		
-		open(FILE, $file_report) or die ("error $!");
+		open(FILE, $fileReport) or die ("error $!");
 		while(<FILE>) {
 			chomp;
+			
 			$_ =~ s/^#*//;
+			
 			if($_ =~ /:/){
 				my @ligne = split(':', $_);
 				push(@header, $ligne[0]);
 			}
 		}
-		close(FILE);
+		close(FILE) or die ("error $!");
+		
 		open(HEAD, ">", $summary) or die (" error $!\n");
 		foreach(@header) {
 			print HEAD uc($_) . "\t";
 		}
 		
-		print HEAD "PUBMED\tGC PERCENT\tENTROPY\tSPECIES\tGENUS\tFAMILY\tORDER\tCLASS\t". 
-							"PHYLUM\tKINGDOM\tCOUNTRY\tA_PERCENT\tT_PERCENT\tG_PERCENT\tC_PERCENT\n";
-		close(HEAD);
+		print HEAD "PUBMED\tGC_PERCENT\tENTROPY\tSPECIES\tGENUS\tFAMILY\tORDER\tCLASS\t". 
+								"PHYLUM\tKINGDOM\tCOUNTRY\tHOST\tISOLATION_SOURCE\tA_PERCENT\t".
+									"T_PERCENT\tG_PERCENT\tC_PERCENT\n";
+		close(HEAD) or die ("error $!");
 		
 		if ($components) {
-			open(SUM, ">>", $specific_summary) or die ("Could not open $!");
-				print SUM "ID\tASSEMBLY\tDESCRIPTION\tLENGTH\tSTATUS\tLEVEL\t" . 
-							"GC_PERCENT\tA_PERCENT\tT_PERCENT\tG_PERCENT\tC_PERCENT\n";	
+			open(SUM, ">>", $specificSummary) or die ("Could not open $!");
+			print SUM "ID\tASSEMBLY\tDESCRIPTION\tLENGTH\tSTATUS\tLEVEL\t" . 
+						"GC_PERCENT\tA_PERCENT\tT_PERCENT\tG_PERCENT\tC_PERCENT\n";	
 			close(SUM);	
 		} else {
 			for my $sum(@summary_list) {
 				open(SUM, ">>", $sum) or die ("Could not open $!");
 				print SUM "ID\tASSEMBLY\tDESCRIPTION\tLENGTH\tSTATUS\tLEVEL\t" . 
-							"GC_PERCENT\tA_PERCENT\tT_PERCENT\tG_PERCENT\tC_PERCENT\n";	
-				close(SUM);
+								"GC_PERCENT\tA_PERCENT\tT_PERCENT\tG_PERCENT\tC_PERCENT\n";	
+				close(SUM) or die ("error $!"); 
 			}
 		}	
 		
-		for my $file(@keysList) {
-			my $file1 = "./" . $repositoryAssembly ."/". $file;
-			my @fasta_genbank = split(",", $assemblyReportList{$file});
-			my $ext_fasta = $fasta_genbank[0];
-			my $ext_genbank = $fasta_genbank[1];
-			my $file2 = "./" . $repositoryAssembly ."/". $ext_fasta;
-			my $file3 = "./" . $repositoryAssembly ."/". $ext_genbank;
+		# print "$actualOS\n";
+		
+		for my $file (@keysList) {
+			my $file1 = $repositoryAssembly . $fldSep . $file;
+			my @fastaGenbank = split(",", $assemblyReportList{$file});
+			my $extFasta = $fastaGenbank[0];
+			my $extGenbank = $fastaGenbank[1];
+			my $file2 = $repositoryAssembly . $fldSep . $extFasta;
+			my $file3 = $repositoryAssembly . $fldSep . $extGenbank;
 			
 			write_assembly($file1, $file2, $file3, $summary, $repositoryAssembly,
-				$chromosomes_summary, $plasmids_summary, $scaffolds_summary,
-					$contigs_summary, $specific_summary, $components, @header);
+				$chromosomesSummary, $plasmidsSummary, $scaffoldsSummary,
+					$contigsSummary, $specificSummary, $components, $kingdom,  $actualOS, @header);
 		}
 		
+		write_html_summary($summary);
+		
 		move($summary, $repositoryAssembly) or die "move failed: $!";
+		move($htmlSummary, $repositoryAssembly) or die "move failed: $!";
+		
 		if ($components) {
-			move($specific_summary, $specificRep) or die "move failed: $!";
-			move($specificRep, $repositoryAssembly . "/" . $specificRep) or die "move failed: $!";
+			move($specificSummary, $specificRep) or die "move failed: $!";
+			move($specificRep, $repositoryAssembly . $fldSep . $specificRep) or die "move failed: $!";
 		}
 		else {
-			move($plasmids_summary, $plasmidsRep) or die "move failed: $!";
-			move($chromosomes_summary, $chromosomesRep) or die "move failed: $!";
-			move($scaffolds_summary, $scaffoldsRep) or die "move failed: $!";
-			move($contigs_summary, $contigsRep) or die "move failed: $!";
-			move($plasmidsRep, $repositoryAssembly . "/" . $plasmidsRep) or die "move failed: $!";
-			move($chromosomesRep, $repositoryAssembly . "/" . $chromosomesRep) or die "move failed: $!";
-			move($scaffoldsRep, $repositoryAssembly . "/" . $scaffoldsRep) or die "move failed: $!";
-			move($contigsRep, $repositoryAssembly . "/" . $contigsRep) or die "move failed: $!";
+			move($plasmidsSummary, $plasmidsRep) or die "move failed: $!";
+			move($chromosomesSummary, $chromosomesRep) or die "move failed: $!";
+			move($scaffoldsSummary, $scaffoldsRep) or die "move failed: $!";
+			move($contigsSummary, $contigsRep) or die "move failed: $!";
+			move($plasmidsRep, $repositoryAssembly . $fldSep . $plasmidsRep) or die "move failed: $!";
+			move($chromosomesRep, $repositoryAssembly . $fldSep . $chromosomesRep) or die "move failed: $!";
+			move($scaffoldsRep, $repositoryAssembly . $fldSep . $scaffoldsRep) or die "move failed: $!";
+			move($contigsRep, $repositoryAssembly . $fldSep . $contigsRep) or die "move failed: $!";
 		}
-		move( $repositoryAssembly, $kingdomRep."/".$repositoryAssembly) or die "move failed: $!";
-		clean_repository();
+		move( $repositoryAssembly, $kingdomRep . $fldSep . $repositoryAssembly) or die "move failed: $!";
+		
+		if ($actualOS eq "linux") { unlink glob "*.dmp"  or die "for file *.dmp $!:"; }
+		unlink glob "*.gz  *.dmp sequence.txt"  or die "$!: for file *.gz sequence.txt";
+
 	} 
 }
 

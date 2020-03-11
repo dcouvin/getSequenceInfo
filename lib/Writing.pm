@@ -3,16 +3,20 @@ use strict;
 use warnings;
 
 use Exporter qw(import);
-use File::Basename qw(dirname);
 use Cwd  qw(abs_path);
-use lib dirname(abs_path $0);
 use Calculation;
+use File::Basename qw(dirname);
+use File::Copy qw(cp move);
+use File::Path qw(rmtree);
+use LWP::Simple qw(get);
+use lib dirname(abs_path $0);
+use POSIX qw(floor);
 use Treatment;
 
 our @EXPORT = qw(write_assembly get_taxonomic_ranks write_assembly_component
 									get_fasta_and_report_sequence_ena_assembly 
 										sequence_ena get_fasta_and_report_sequence_ena_other
-											add_to_file);
+											add_to_file write_html_summary);
 
 
 
@@ -20,109 +24,104 @@ our @EXPORT = qw(write_assembly get_taxonomic_ranks write_assembly_component
 sub write_assembly {
 	my ($assembly_report, $genomic_file, $genbank_file, $summary, $repositoryAssembly,
 		    $chromosomes_summary, $plasmids_summary, $scaffolds_summary, 
-				$contigs_summary, $specific_summary, $components, @header) = @_;
+				$contigs_summary, $specific_summary, $components, $kingdom, $actualOS, @header) = @_;
 				
 	my %hash_informations = ();
 	my $seq = "";
 	my $fasta_details = "";
 	my $genome_name = "";
-	my $country = "ND";
+	my $country = "na";
 	my $GCpercent = -1;
-	my $entropy_level = "ND";
-	my $tax_id = "ND";
+	my $entropy_level = "na";
+	my $tax_id = "na";
 	my $assembly_line;
-	my $pubmed_id = "ND";
+	my $pubmed_id = "na";
+	my $host = "na";
+	my $isoSource = "na";
+	my $species = "na";
+	my $genus = "na";
+	my $family = "na";
+	my $order = "na";
+	my $class = "na";
+	my $phylum = "na";
 	
-	open(FIC, "<", $assembly_report) or die ("Could not open $!\n");
+	# print "$actualOS\n";
+	
+	open(FIC, "<", $assembly_report) or die "error open file $!:";
 	while (<FIC>) {
 		chomp;
 		$_ =~ s/^#*//;
 		if ($_ =~ /:/) {
 			my @ligne = split(':', $_);
-			$ligne[1] =~ s/^\s+//;
-			$ligne[1] =~ s/\s+$//;
-			$hash_informations{$ligne[0]} = $ligne[1];
+			if (defined $ligne[1]) {
+				$ligne[1] = trim($ligne[1]);
+				$hash_informations{$ligne[0]} = $ligne[1];
+			}
 		}
 		if ($_  =~ /assembled-molecule/) { $assembly_line = $_; }
 	}
-	close(FIC);
+	close(FIC) or die "close file error $!:";
 	
 	my @header_report = keys(%hash_informations);
 	
-	open(FILE_SUMMARY, ">>", $summary) or die ("Could not open $!\n");
+	open(FILE_SUMMARY, ">>", $summary) or die "error open file $!:";
 	foreach my $k(@header) {
 		if (grep $_ eq $k, @header_report) {
 			my $information = $hash_informations{$k};
-			if ($k =~ /Assembly name/) {
-				$genome_name = $information;
-			}
+			
+			if ($k =~ /Assembly name/) { $genome_name = $information; }
+			
 			if (($information =~ /^\s*$/) || ($information eq "")) {
-				print FILE_SUMMARY "ND\t";
-			}
-			else {
+				print FILE_SUMMARY "na\t";
+			} else { 
 				print FILE_SUMMARY $information . "\t";
 			}
+		} else {
+			print FILE_SUMMARY "na\t";
 		}
-		else {
-			print FILE_SUMMARY "ND\t";
-		}
-		
 	}
 	
-	open(FIC2, "<", $genomic_file) or die ("Could not open $!\n");
+	open(FIC2, "<", $genomic_file) or die "Could not open $!:";
 	while (<FIC2>) {
 		chomp;
 		if ($_ !~ /^>/) { $seq .= $_; }
 	}
-	close(FIC2);
+	close(FIC2)  or die "Close file error $!:";
 	
 	if ($hash_informations{' Taxid'} !~ /\s+/) { $tax_id = $hash_informations{' Taxid'} };
 
 	$GCpercent = gc_percent($seq);
-	my ($species,$genus,$family,$order,$class,$phylum,$kingdomGB) = get_taxonomic_rank_taxid($tax_id, "rankedlineage.dmp");
+	
+	if ($actualOS eq "linux") {
+		($species, $genus, $family, $order, $class, $phylum) =  
+								get_taxonomic_rank($tax_id, "rankedlineage.dmp");
+	}
+	
+	elsif ($actualOS eq "MSWin32") { 
+		($species, $genus, $family, $order, $class, $phylum) =
+								get_taxonomic_rank_genbank($genbank_file);
+	}
+	
 	my ($a_percent, $t_percent, $g_percent, $c_percent) = nucleotid_percent($genomic_file);
 	
-	open(FIC3, "<", $genbank_file) or die ("Could not open $!");
+	open(FIC3, "<", $genbank_file) or die "Could not open $!:";
 	while(<FIC3>) {
 		chomp;
-		if ($_ =~ /\/country="(.*)"/) { $country = $1; }
-		if ($_ =~ /PUBMED(.*)/) {  $pubmed_id = trim($1); }		
+		if ($_ =~ /\/country="(.*)"/) { $country = trim($1); }
+		if ($_ =~ /PUBMED(.*)/) {  $pubmed_id = trim($1); }
+		if ($_ =~ /\/host="(.*)"/) {  $host = trim($1); }		
+		if ($_ =~ /\/isolation_source="(.*)"/) {  $isoSource = trim($1); }		
 	}
-	close(FIC3);	
+	close(FIC3) or die "Close file error $!:";	
 	
-	print FILE_SUMMARY $pubmed_id."\t".$GCpercent."\t".$entropy_level. "\t". $species."\t".$genus."\t".$family."\t".
-											$order."\t".$class."\t".$phylum."\t".$kingdomGB."\t". $country. "\t". $a_percent . "\t" .
-											$t_percent . "\t" . $g_percent . "\t" .$c_percent  ."\n" ; 
-	close(FILE_SUMMARY);
+	print FILE_SUMMARY $pubmed_id . "\t" . $GCpercent . "\t" . $entropy_level . "\t" . $species . "\t" . $genus . "\t" . $family ."\t" . 
+												$order . "\t" . $class . "\t" . $phylum . "\t" . $kingdom . "\t" . $country . "\t" . $host . "\t" . $isoSource  . "\t" .
+													$a_percent . "\t" . $t_percent . "\t" . $g_percent . "\t" . $c_percent  ."\n" ; 
+									
+	close(FILE_SUMMARY) or die "close file error $!:";
 	
 	write_assembly_component($genomic_file, $genome_name, $chromosomes_summary,
 	$plasmids_summary, $scaffolds_summary, $contigs_summary, $specific_summary, $components);
-}
-#------------------------------------------------------------------------------
-#function allowing to get taxonomic ranks from Genbank file
-sub get_taxonomic_rank {
-	my ($genbank) = @_;
-	my ($species,$genus,$family,$order,$class,$phylum,$kingdomGB);
-
-	my $seqio_object = Bio::SeqIO->new(-file => $genbank);
-	my $seq_object = $seqio_object->next_seq;
-
-	# legible and long
-	my $species_object = $seq_object->species;
-	my $species_string = $species_object->node_name;
-
-	# get all taxa from the ORGANISM section in an array
-	my @classification = $seq_object->species->classification;
-	my $arraySize = @classification;
-
-	if($arraySize == 7) {
-		($species,$genus,$family,$order,$class,$phylum,$kingdomGB) = @classification;
-	}
-	elsif($arraySize == 4) {
-		($species,$class,$phylum,$kingdomGB) = @classification;
-	}
-  	
-	return ($species,$genus,$family,$order,$class,$phylum,$kingdomGB); 
 }
 #------------------------------------------------------------------------------
 # get assembly component
@@ -130,11 +129,11 @@ sub write_assembly_component {
 	my($multi_fasta, $assembly_name, $chromosomes_summary, $plasmids_summary,
 			$scaffolds_summary, $contigs_summary, $specific_summary, $components) = @_;
 			
-	my $status = "ND";
-	my $level = "ND";
+	my $status = "na";
+	my $level = "na";
 	my $gcpercent;
 	my $info;
-	my $tmp_fasta_file = "/tmp/sequence.txt";
+	my $tmp_fasta_file = "sequence.txt";
 	my @desc = ();
 	
 	# check each sequence from (multi-)fasta file
@@ -168,7 +167,7 @@ sub write_assembly_component {
 		}	
 		else {
 			if ($desc[1]) {$level = $desc[1];}
-			## a factoriser
+			
 			if ($desc[0] =~ /chromosome/) {
 				$status = "chromosome";
 				$info = $seqID . "\t" . $assembly_name ."\t" . $seqDesc . "\t" . $seqLength . "\t" . $status . "\t" . $level ."\t"
@@ -197,7 +196,7 @@ sub write_assembly_component {
 # download fasta sequence and report on ENA with assembly ID
 sub get_fasta_and_report_sequence_ena_assembly {
 	my($sequenceID) = @_;
-	my $tmp_file = "/tmp/fichier.txt";
+	my $tmp_file = "fichier.txt";
 	my @id_list = ();
 	my $id_chain = "";
 	my $fasta_file = "";
@@ -227,7 +226,7 @@ sub get_fasta_and_report_sequence_ena_assembly {
 	
 	
 	$report_file = $sequenceID . "_report.txt";
-	for my $id(@id_list){
+	for my $id (@id_list) {
 		$url = "https://www.ebi.ac.uk/ena/data/view/$id&display=text&header=true";
 		$output = get($url);
 		open(FILE, ">>", $report_file) or die("could not open $!");
@@ -235,6 +234,9 @@ sub get_fasta_and_report_sequence_ena_assembly {
 		print FILE "##########################################################################\n\n";
 		close(FILE) or die("could not close $!");
 	}
+	
+	unlink "fichier.txt" or die " $!: error delete file fichier.txt";
+	
 	return ($fasta_file, $report_file);
 }
 #------------------------------------------------------------------------------
@@ -242,21 +244,20 @@ sub get_fasta_and_report_sequence_ena_assembly {
 sub sequence_ena {
 	my($sequenceID) = @_;
 	my $assemblyRep = $sequenceID . "_folder";
-	my $fasta_file;
-	my $report_file;
+	my $fastaFile;
+	my $reportFile;
 
-	if(-d $assemblyRep){system("rm -rf $assemblyRep");}
+	if(-d $assemblyRep) { rmtree($assemblyRep); }
 	mkdir $assemblyRep;
 	
 	if($sequenceID =~ /^GCA_.*/){
-		($fasta_file, $report_file) = get_fasta_and_report_sequence_ena_assembly($sequenceID);
+		($fastaFile, $reportFile) = get_fasta_and_report_sequence_ena_assembly($sequenceID);
 	}
-	else{
-		($fasta_file, $report_file) = get_fasta_and_report_sequence_ena_other($sequenceID);
+	else {
+		($fastaFile, $reportFile) = get_fasta_and_report_sequence_ena_other($sequenceID);
 	}
-	
-	system("mv $fasta_file $assemblyRep");
-	system("mv $report_file $assemblyRep");
+	move($fastaFile, $assemblyRep) or die "move failed: $!";
+	move($reportFile, $assemblyRep) or die "move failed: $!";
 } 
 #------------------------------------------------------------------------------
 # download fasta sequence and report on ENA with ENA ID 
@@ -272,14 +273,14 @@ sub get_fasta_and_report_sequence_ena_other {
 	$fasta_file = $sequenceID . ".fasta";
 	open(FILE, ">", $fasta_file) or die("could not open $!");
 	print FILE $output;
-	close(FILE) or die("could not close $!");
+	close(FILE) or die "could not close $!";
 	
 	$url = "https://www.ebi.ac.uk/ena/data/view/$sequenceID&display=text&header=true";
 	$output = get($url);
 	$report_file = $sequenceID . "_report.txt";
 	open(FILE, ">>", $report_file) or die("could not open $!");
 	print FILE $output;
-	close(FILE) or die("could not close $!");
+	close(FILE) or die "could not close $!";
 	
 	return ($fasta_file, $report_file);
 }
@@ -293,31 +294,164 @@ sub add_to_file {
 }
 #------------------------------------------------------------------------------
 #   return taxonomic rank of species by tax id
-sub get_taxonomic_rank_taxid {
-	my($tax_id, $taxonomic_file) = @_;
-	my $species = "ND";
-	my $genus = "ND";
-	my $family = "ND";
-	my $order = "ND";
-	my $class = "ND";
-	my $phylum = "ND";
-	my $kingdom = "ND";
-	open(TFILE, "<", $taxonomic_file) or die("Could not open $!");
-		while(<TFILE>) {
-			chomp;
-			my @tax_info = split(/\|/, $_);
-			if ($tax_info[0] == $tax_id) {
-				@tax_info  = trim_array(@tax_info);
-				splice(@tax_info, 0, 2);
-				my @tmp_array = ($species, $genus, $family, $order, $class, $phylum, $kingdom);
-				for(my $i = 0; $i < $#tax_info + 1; $i++) {
-					if (length($tax_info[$i]) > 0) { $tmp_array[$i] = $tax_info[$i] }
-				}
-				close(TFILE);
-				return @tmp_array;
+sub get_taxonomic_rank {
+	my($tax_id, $taxonomic_file ) = @_;
+	
+	my ($species,$genus,$family,$order,$class,$phylum);
+	my @tmp_array = ($species, $genus, $family, $order, $class, $phylum);
+	
+	open(TFILE, "<", $taxonomic_file) or 
+		die("Could not open $taxonomic_file: $!");
+		
+	while(<TFILE>) {
+		chomp;
+		my @tax_info = split(/\|/, $_);
+		
+		if ($tax_info[0] == $tax_id) {
+			@tax_info  = trim_array(@tax_info);
+		
+			$tmp_array[0] = $tax_info[1];
+			splice(@tax_info, 0, 3);
+			
+			for(my $i = 1; $i < $#tmp_array + 1; $i++) {
+				if (length($tax_info[$i-1]) > 0) { $tmp_array[$i] = $tax_info[$i-1]; }
 			}
+			close(TFILE) or die "error close $taxonomic_file  $!:";
+			return @tmp_array;
 		}
+	}
+	close(TFILE) or die "error close $taxonomic_file  $!:";
 }
+#------------------------------------------------------------------------------
+#   write html summary file
+sub write_html_summary {
+	my($summary) = @_;
+	my $htmlFile = "summary.html";
+	my $header = "";
+	my @fileToRead = ();
+	
+	open(HTML, ">", $htmlFile) or die "error open HTML summary $!";
+	print HTML "<!DOCTYPE html>\n";
+	print HTML "<html>\n";
+	print HTML " <head>\n";
+	print HTML "  <title>Assembly summary</title>\n";
+	print HTML " </head>\n";
+	print HTML " <body>\n";
+	print HTML "  <h2>Assembly Summary</h2>\n";
+	close(HTML) or die "error close HTML summary $!";
+	
+	open(SUM, "<", $summary) or die "error open tsv summary $!";
+	@fileToRead = <SUM>;
+	close(SUM) or die "error close tsv summary $!";
+	
+	$header = splice(@fileToRead, 0, 1);
+	
+	for my $line (@fileToRead) {
+		write_html_table($line, $htmlFile, $header);
+	}
+	
+	open(HTML, ">>", $htmlFile) or die "error open HTML summary $!";
+	print HTML " </body>\n";
+	print HTML "</html>\n";
+	close(HTML) or die "error close HTML summary $!";
+}
+#------------------------------------------------------------------------------
+#   write html table for summary
+sub write_html_table {
+	my ($line, $htmlFile, $header) = @_;
+	
+	open(HTML, ">>", $htmlFile) or die "error open HTML summary $!";
+	print HTML "  <table  border=\"1\" style=\"margin-bottom: 20px;\">\n";
+	close(HTML) or die "error close HTML summary $!";
+	add_table_content($line, $htmlFile, $header);
+}
+#------------------------------------------------------------------------------
+#   add information to table
+sub add_table_content {
+	my ($line, $htmlFile, $header) = @_;
+	
+	my @assemblyHeader = split(/\t/, $header);
+	my @assemblyInfo = split(/\t/, $line);
+	my $length = $#assemblyHeader + 1;
+	my $lineNb = 0;
+	my $fullLine = floor($length / 7);
+	my $title = "";
+	my $info = "";
+	
+	open(HTML, ">>", $htmlFile) or die "error open HTML summary $!";
+	print HTML "   <tr>\n";
+	
+	for (my $i = 1; $i < $length + 1; $i++) {
+	
+		$title = trim($assemblyHeader[$i - 1]);
+		print HTML "    <th>$title</th>\n";
+		
+		if ($i % 7 == 0) {
+			my $itr = 0;
+			print HTML "   </tr>\n";
+			print HTML "   <tr>\n";
+			
+			while($itr < 7) {
+				$info = trim(splice(@assemblyInfo, 0, 1));
+				print HTML "    <td>$info</td>\n";
+				$itr ++;
+			}
+			print HTML "   </tr>\n";
+			print HTML "   <tr>\n";
+			$lineNb++;
+		}
+		
+		if ($length % 7 != 0 && $lineNb == $fullLine) {
+		
+			$i++;
+			
+			while ($i < $length + 1) {
+				$title = trim($assemblyHeader[$i - 1]);
+				print HTML "    <th>$title</th>\n";
+				$i++;
+			} 
+			
+			print HTML "   </tr>\n";
+			print HTML "   <tr>\n";
+			
+			my $subLength = $#assemblyInfo + 1;
+			
+			for(my $j = 0; $j < $subLength; $j++) {
+				$info = trim(splice(@assemblyInfo, 0, 1));
+				print HTML "    <td>$info</td>\n";
+			}
+			print HTML "   </tr>\n";
+		}
+		
+	}
+	print HTML "  </table>\n";
+	close(HTML) or die "error close HTML summary $!";
+}
+#------------------------------------------------------------------------------
+#getTaxonomicRanks (function allowing to get taxonomic ranks from Genbank file)
+sub get_taxonomic_rank_genbank {
+	my ($genbank) = @_;
+	my ($species,$genus,$family,$order,$class,$phylum,$kingdomGB);
 
+	my $seqio_object = Bio::SeqIO->new(-file => $genbank);
+	my $seq_object = $seqio_object->next_seq;
+
+	# legible and long
+	my $species_object = $seq_object->species;
+	my $species_string = $species_object->node_name;
+
+	# get all taxa from the ORGANISM section in an array
+	my @classification = $seq_object->species->classification;
+	my $arraySize = @classification;
+
+	if($arraySize == 7){
+		($species,$genus,$family,$order,$class,$phylum,$kingdomGB) = @classification;
+	}
+	elsif($arraySize == 4){
+		($species,$class,$phylum,$kingdomGB) = @classification;
+	}
+  	
+	return ($species,$genus,$family,$order,$class,$phylum); 
+}
 
 1;

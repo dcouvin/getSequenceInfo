@@ -14,6 +14,7 @@ sub nucleotid_percent {
 	my $G = 0;
 	my $C = 0;
 	my $length = 0;
+	
 	open (FASTA, "<", $fastaFile) or die ("Could not open $!");
 	while (<FASTA>) {
 		chomp;
@@ -38,7 +39,7 @@ sub nucleotid_percent {
 #------------------------------------------------------------------------------
 sub log2 {
   my $n = shift;
-  return (log($n)/ log(2));
+  return (log($n) / log(2));
 }
 # Function allowing to calculate conservation of DRs based on entropy
 sub entropy {

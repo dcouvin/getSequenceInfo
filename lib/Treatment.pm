@@ -4,7 +4,7 @@ use warnings;
 
 use Exporter qw(import);
 
-our @EXPORT = qw(trim trim_array trim_hash_table);
+our @EXPORT = qw(trim trim_array);
 
 
 # remove back and front spaces
