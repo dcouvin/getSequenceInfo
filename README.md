@@ -1,5 +1,5 @@
 # getSequenceInfo
-A simple Perl script allowing to get genome sequences from GenBank, RefSeq or ENA sequence repositories.
+A simple [Perl](https://en.wikipedia.org/wiki/Perl) script allowing to get genome sequences from GenBank, RefSeq or ENA sequence repositories.
 
 # Requirements
 Perl programming language must be available in your system to run getSequenceInfo. If your Operating System (OS) is Windows, you can get Perl by installing [ActivePerl](https://www.activestate.com/products/perl/downloads/).
