@@ -22,20 +22,19 @@ our @EXPORT = qw(write_assembly get_taxonomic_ranks write_assembly_component
 
 # write general assembly file
 sub write_assembly {
-	my ($assembly_report, $genomic_file, $genbank_file, $summary, $repositoryAssembly,
-		    $chromosomes_summary, $plasmids_summary, $scaffolds_summary, 
-				$contigs_summary, $specific_summary, $components, $kingdom, $actualOS, @header) = @_;
+	my ($assemblyReport, $genomicFile, $genbankFile, $summary, $repositoryAssembly,
+		    $chromosomesSummary, $plasmidsSummary, $scaffoldsSummary, 
+				$contigsSummary, $specificSummary, $components, $kingdom, $actualOS, @header) = @_;
 				
-	my %hash_informations = ();
+	my %hashInformations = ();
 	my $seq = "";
-	my $fasta_details = "";
-	my $genome_name = "";
+	my $genomeName = "";
 	my $country = "na";
 	my $GCpercent = -1;
-	my $entropy_level = "na";
-	my $tax_id = "na";
-	my $assembly_line;
-	my $pubmed_id = "na";
+	my $entropyLevel = "na";
+	my $taxId = "na";
+	my $assemblyLine;
+	my $pubmedId = "na";
 	my $host = "na";
 	my $isoSource = "na";
 	my $species = "na";
@@ -45,9 +44,7 @@ sub write_assembly {
 	my $class = "na";
 	my $phylum = "na";
 	
-	# print "$actualOS\n";
-	
-	open(FIC, "<", $assembly_report) or die "error open file $!:";
+	open(FIC, "<", $assemblyReport) or die "error open file $!:";
 	while (<FIC>) {
 		chomp;
 		$_ =~ s/^#*//;
@@ -55,21 +52,21 @@ sub write_assembly {
 			my @ligne = split(':', $_);
 			if (defined $ligne[1]) {
 				$ligne[1] = trim($ligne[1]);
-				$hash_informations{$ligne[0]} = $ligne[1];
+				$hashInformations{$ligne[0]} = $ligne[1];
 			}
 		}
-		if ($_  =~ /assembled-molecule/) { $assembly_line = $_; }
+		if ($_  =~ /assembled-molecule/) { $assemblyLine = $_; }
 	}
 	close(FIC) or die "close file error $!:";
 	
-	my @header_report = keys(%hash_informations);
+	my @header_report = keys(%hashInformations);
 	
 	open(FILE_SUMMARY, ">>", $summary) or die "error open file $!:";
 	foreach my $k(@header) {
 		if (grep $_ eq $k, @header_report) {
-			my $information = $hash_informations{$k};
+			my $information = $hashInformations{$k};
 			
-			if ($k =~ /Assembly name/) { $genome_name = $information; }
+			if ($k =~ /Assembly name/) { $genomeName = $information; }
 			
 			if (($information =~ /^\s*$/) || ($information eq "")) {
 				print FILE_SUMMARY "na\t";
@@ -81,47 +78,44 @@ sub write_assembly {
 		}
 	}
 	
-	open(FIC2, "<", $genomic_file) or die "Could not open $!:";
+	open(FIC2, "<", $genomicFile) or die "Could not open $!:";
 	while (<FIC2>) {
 		chomp;
 		if ($_ !~ /^>/) { $seq .= $_; }
 	}
 	close(FIC2)  or die "Close file error $!:";
 	
-	if ($hash_informations{' Taxid'} !~ /\s+/) { $tax_id = $hash_informations{' Taxid'} };
+	if ($hashInformations{' Taxid'} !~ /\s+/) { $taxId = $hashInformations{' Taxid'} };
 
 	$GCpercent = gc_percent($seq);
 	
 	if ($actualOS eq "linux") {
-		($species, $genus, $family, $order, $class, $phylum) =  
-								get_taxonomic_rank($tax_id, "rankedlineage.dmp");
+		($species, $genus, $family, $order, $class, $phylum) =  get_taxonomic_rank($taxId, "rankedlineage.dmp");
 	}
-	
 	elsif ($actualOS eq "MSWin32") { 
-		($species, $genus, $family, $order, $class, $phylum) =
-								get_taxonomic_rank_genbank($genbank_file);
+		($species, $genus, $family, $order, $class, $phylum) = get_taxonomic_rank_genbank($genbankFile);
 	}
 	
-	my ($a_percent, $t_percent, $g_percent, $c_percent) = nucleotid_percent($genomic_file);
+	my ($a_percent, $t_percent, $g_percent, $c_percent) = nucleotid_percent($genomicFile);
 	
-	open(FIC3, "<", $genbank_file) or die "Could not open $!:";
+	open(FIC3, "<", $genbankFile) or die "Could not open $!:";
 	while(<FIC3>) {
 		chomp;
 		if ($_ =~ /\/country="(.*)"/) { $country = trim($1); }
-		if ($_ =~ /PUBMED(.*)/) {  $pubmed_id = trim($1); }
+		if ($_ =~ /PUBMED(.*)/) {  $pubmedId = trim($1); }
 		if ($_ =~ /\/host="(.*)"/) {  $host = trim($1); }		
 		if ($_ =~ /\/isolation_source="(.*)"/) {  $isoSource = trim($1); }		
 	}
 	close(FIC3) or die "Close file error $!:";	
 	
-	print FILE_SUMMARY $pubmed_id . "\t" . $GCpercent . "\t" . $entropy_level . "\t" . $species . "\t" . $genus . "\t" . $family ."\t" . 
+	print FILE_SUMMARY $pubmedId . "\t" . $GCpercent . "\t" . $entropyLevel . "\t" . $species . "\t" . $genus . "\t" . $family ."\t" . 
 												$order . "\t" . $class . "\t" . $phylum . "\t" . $kingdom . "\t" . $country . "\t" . $host . "\t" . $isoSource  . "\t" .
 													$a_percent . "\t" . $t_percent . "\t" . $g_percent . "\t" . $c_percent  ."\n" ; 
 									
 	close(FILE_SUMMARY) or die "close file error $!:";
 	
-	write_assembly_component($genomic_file, $genome_name, $chromosomes_summary,
-	$plasmids_summary, $scaffolds_summary, $contigs_summary, $specific_summary, $components);
+	write_assembly_component($genomicFile, $genomeName, $chromosomesSummary,
+	$plasmidsSummary, $scaffoldsSummary, $contigsSummary, $specificSummary, $components);
 }
 #------------------------------------------------------------------------------
 # get assembly component
@@ -173,17 +167,20 @@ sub write_assembly_component {
 				$info = $seqID . "\t" . $assembly_name ."\t" . $seqDesc . "\t" . $seqLength . "\t" . $status . "\t" . $level ."\t"
 							. $gcpercent."\t". $a_percent ."\t". $t_percent ."\t". $g_percent ."\t". $c_percent . "\n";
 				add_to_file($chromosomes_summary, $info);
-			} elsif ($desc[0] =~ /plasmid/) {
+			}
+			elsif ($desc[0] =~ /plasmid/) {
 				$status = "plasmid";
 				$info = $seqID . "\t" . $assembly_name ."\t" . $seqDesc . "\t" . $seqLength . "\t" . $status . "\t" . $level ."\t"
 							. $gcpercent."\t". $a_percent ."\t". $t_percent ."\t". $g_percent ."\t". $c_percent . "\n";
 				add_to_file($plasmids_summary, $info);				
-			} elsif ($desc[0] =~ /scaffold/) {
+			} 
+			elsif ($desc[0] =~ /scaffold/) {
 				$status = "scaffold";
 				$info = $seqID . "\t" . $assembly_name ."\t" . $seqDesc . "\t" . $seqLength . "\t" . $status . "\t" . $level ."\t"
 							. $gcpercent."\t". $a_percent ."\t". $t_percent ."\t". $g_percent ."\t". $c_percent . "\n";
 				add_to_file($scaffolds_summary, $info);					
-			} elsif ($desc[0] =~ /contig/) {
+			} 
+			elsif ($desc[0] =~ /contig/) {
 				$status = "contig";
 				$info = $seqID . "\t" . $assembly_name ."\t" . $seqDesc . "\t" . $seqLength . "\t" . $status . "\t" . $level ."\t"
 							. $gcpercent."\t". $a_percent ."\t". $t_percent ."\t". $g_percent ."\t". $c_percent . "\n";
@@ -422,7 +419,6 @@ sub add_table_content {
 			}
 			print HTML "   </tr>\n";
 		}
-		
 	}
 	print HTML "  </table>\n";
 	close(HTML) or die "error close HTML summary $!";

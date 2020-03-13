@@ -148,8 +148,7 @@ foreach my $kingdom (@kingdomTab) {
 	if ($kingdom eq "viruses") { $kingdom = "viral"; }
 	
 	if (grep(/^$kingdom$/, @availableKingdoms)) {
-		get_assembly_summary_species($releaseDate, $directory, $kingdom, 
-														$species, $representation, $fldSep, $actualOS);
+		get_assembly_summary_species($releaseDate, $directory, $kingdom, $species, $representation, $fldSep, $actualOS);
 	}
 }
 
@@ -247,7 +246,7 @@ sub program_version {
 }
 #------------------------------------------------------------------------------
 sub get_assembly_summary_species {
-	my($releaseDate, $directory, $kingdom, $species, $representation, $fldSep, $actualOS) = @_;
+	my ($releaseDate, $directory, $kingdom, $species, $representation, $fldSep, $actualOS) = @_;
 
 	# assembly_summary.txt file from NCBI FTP site
 	my $assemblySummary = "/genomes/$directory/$kingdom/assembly_summary.txt"; 
@@ -338,6 +337,7 @@ sub get_assembly_summary_species {
 	if (-e "assembly_summary.txt") {
 		
 		if ($actualOS eq "linux") {
+		
 			# initialiaze tar manipulation
 			my $tar = Archive::Tar->new;
 	
@@ -426,11 +426,12 @@ sub get_assembly_summary_species {
 			print "The date could be too advances try again with an earlier date\n";
 			print "Please try again with other requirements\n";
 			print "##################################################################\n\n";
+		
 			exit();
 		}
 		
 		# write summary files 
-		my @keysList = keys(%assemblyReportList);
+		my @keysList = keys %assemblyReportList;
 		my $summary = "summary.xls";
 		my $htmlSummary = "summary.html";
 		my $specificSummary;
