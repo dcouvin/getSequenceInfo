@@ -375,6 +375,7 @@ sub add_table_content {
 	my $title = "";
 	my $info = "";
 	
+	
 	open(HTML, ">>", $htmlFile) or die "error open HTML summary $!";
 	print HTML "   <tr>\n";
 	
@@ -390,8 +391,13 @@ sub add_table_content {
 			
 			while($itr < 7) {
 				$info = trim(splice(@assemblyInfo, 0, 1));
-				print HTML "    <td>$info</td>\n";
-				$itr ++;
+				if ($info ne "na" && $itr == 6 &&  $lineNb == 2) {
+					print HTML "   <td><a href=https://www.ncbi.nlm.nih.gov/pubmed/?term=$info target=\"_blank\">$info</a></td>";
+				}
+				else {
+					print HTML "    <td>$info</td>\n";
+				}
+				$itr++;
 			}
 			print HTML "   </tr>\n";
 			print HTML "   <tr>\n";

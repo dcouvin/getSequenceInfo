@@ -70,12 +70,15 @@ my $sequenceID;
 
 my $ftpServor = "ftp.ncbi.nlm.nih.gov";
 
-my $fldSep = ""; # folder seperation change by OS 
+my $fldSep; # folder seperation change by OS 
 
 my @availableKingdoms = ("archaea","bacteria","fungi","invertebrate", "plant", "protozoa", 
 						"vertebrate_mammalian", "vertebrate_other", "viral");  # list of available kingdoms
 		
-my $actualOS = ""; # OS of the computer
+my $actualOS; # OS of the computer
+
+my $mainFolder; # folder where the assembly are place
+
 
 
 if (@ARGV<1) {
@@ -95,34 +98,37 @@ if ($ARGV[0] eq "-version" || $ARGV[0] eq "-v") {
 
 # requirements
 for (my $i=0; $i<=$#ARGV; $i++) {
-    if ($ARGV[$i]=~/-kingdom/ or $ARGV[$i]=~/-k/) {
+    if ($ARGV[$i]=~/-kingdom/i or $ARGV[$i]=~/-k/i) {
 		$kingdoms = $ARGV[$i+1];
     }
-    elsif ($ARGV[$i]=~/-directory/ or $ARGV[$i]=~/-dir/) {
+    elsif ($ARGV[$i]=~/-directory/i or $ARGV[$i]=~/-dir/i) {
     	$directory = $ARGV[$i+1];
     }
-    elsif ($ARGV[$i]=~/-date/) {
+    elsif ($ARGV[$i]=~/-date/i) {
     	$releaseDate = $ARGV[$i+1];
     }
-	elsif ($ARGV[$i]=~/-getSummary/ or $ARGV[$i]=~/-get/) {
-		if (-e "assembly_summary.txt") { unlink "assembly_summary.txt" or die "$! fail";}
+	elsif ($ARGV[$i]=~/-getSummary/i or $ARGV[$i]=~/-get/i) {
+		if (-e "assembly_summary.txt") { unlink "assembly_summary.txt" or die "$! fail"; }
     	$getSummary = 1;
     }
-	elsif ($ARGV[$i]=~/-species/ or $ARGV[$i]=~/-s/ or $ARGV[$i]=~/-S/) {
+	elsif ($ARGV[$i]=~/-species/i or $ARGV[$i]=~/-s/i) {
 		$species = $ARGV[$i+1];
 		$species =~ tr/ /_/;
 	}
-	elsif ($ARGV[$i]=~/-representation/ or $ARGV[$i]=~/-r/ or $ARGV[$i]=~/-R/) {
+	elsif ($ARGV[$i]=~/-representation/i or $ARGV[$i]=~/-r/i) {
 		$representation = $ARGV[$i+1];
 	}
-	elsif ($ARGV[$i]=~/-components/ or $ARGV[$i]=~/-c/ or $ARGV[$i]=~/-C/) {
+	elsif ($ARGV[$i]=~/-components/i or $ARGV[$i]=~/-c/i) {
 		$components = $ARGV[$i+1];
 	}
-	elsif ($ARGV[$i]=~/-quantity/ or $ARGV[$i]=~/-q/ or $ARGV[$i]=~/-Q/) {
+	elsif ($ARGV[$i]=~/-quantity/i or $ARGV[$i]=~/-q/i) {
 		$quantity = int($ARGV[$i+1]);
 	}
-	elsif ($ARGV[$i]=~/-ena/ or $ARGV[$i]=~/-ENA/) {
+	elsif ($ARGV[$i]=~/-ena/i) {
 		$sequenceID = $ARGV[$i+1];
+	}
+	elsif ($ARGV[$i]=~/-output/i or $ARGV[$i]=~/-o/i) {
+		$mainFolder = $ARGV[$i+1];
 	}
 }
 
@@ -148,7 +154,7 @@ foreach my $kingdom (@kingdomTab) {
 	if ($kingdom eq "viruses") { $kingdom = "viral"; }
 	
 	if (grep(/^$kingdom$/, @availableKingdoms)) {
-		get_assembly_summary_species($releaseDate, $directory, $kingdom, $species, $representation, $fldSep, $actualOS);
+		get_assembly_summary_species($releaseDate, $directory, $kingdom, $species, $representation, $fldSep, $actualOS, $mainFolder);
 	}
 }
 
@@ -246,7 +252,7 @@ sub program_version {
 }
 #------------------------------------------------------------------------------
 sub get_assembly_summary_species {
-	my ($releaseDate, $directory, $kingdom, $species, $representation, $fldSep, $actualOS) = @_;
+	my ($releaseDate, $directory, $kingdom, $species, $representation, $fldSep, $actualOS, $mainFolder) = @_;
 
 	# assembly_summary.txt file from NCBI FTP site
 	my $assemblySummary = "/genomes/$directory/$kingdom/assembly_summary.txt"; 
@@ -289,9 +295,17 @@ sub get_assembly_summary_species {
 	
 	# create $kingdomRep
 	# to check if Repository already exist
-	my $oldRep = ""; 
+	my $oldRep = "";
 	
-	my $kingdomRep = $kingdom."_".$start_year."_".$start_month."_".$start_day;
+	my $kingdomRep;
+
+	if (defined $mainFolder) {
+		$kingdomRep = $mainFolder; 
+	}
+	else { 
+		$kingdomRep = $kingdom."_".$start_year."_".$start_month."_".$start_day; 
+	}
+	#my $kingdomRep = $kingdom."_".$start_year."_".$start_month."_".$start_day;
 	mkdir $kingdomRep unless -d $kingdomRep;
 	
 	# Repository for Assembly
@@ -383,8 +397,7 @@ sub get_assembly_summary_species {
 							my $fileFasta = $gcfName."_genomic.fna.gz";
 							my $ucpFasta = $gcfName."_genomic.fna";
 							if (-e $fileFasta) {
-								gunzip $fileFasta => $ucpFasta or 
-										die "gunzip failed: $GunzipError\n";
+								gunzip $fileFasta => $ucpFasta or die "gunzip failed: $GunzipError\n";
 								move($ucpFasta, $repositoryAssembly) or die "move failed: $!";
 							}
 							
@@ -426,8 +439,22 @@ sub get_assembly_summary_species {
 			print "The date could be too advances try again with an earlier date\n";
 			print "Please try again with other requirements\n";
 			print "##################################################################\n\n";
-		
-			exit();
+			
+			if ($actualOS eq "linux") { unlink glob "*.dmp *.gz"  or die "for file *.dmp *.gz $!:"; }
+			
+			rmdir $kingdomRep or die "fail remove directory $!:";
+			rmdir $repositoryAssembly or die "fail remove directory $!:"; 
+			
+			if ($components) {							
+				rmdir $specificRep or die "fail remove directory $!:"; 
+			} 
+			else {
+				rmdir $plasmidsRep or die "fail remove directory $!:";
+				rmdir $chromosomesRep or die "fail remove directory $!:";
+				rmdir $scaffoldsRep or die "fail remove directory $!:"; 
+				rmdir $contigsRep or die "fail remove directory $!:";
+			}
+			exit(); 
 		}
 		
 		# write summary files 
