@@ -365,67 +365,65 @@ sub write_html_table {
 #------------------------------------------------------------------------------
 #   add information to table
 sub add_table_content {
-	my ($line, $htmlFile, $header) = @_;
+	my ($line, $htmlFile, $headers) = @_;
 	
-	my @assemblyHeader = split(/\t/, $header);
+	my @assemblyHeader = split(/\t/, $headers);
 	my @assemblyInfo = split(/\t/, $line);
-	my $length = $#assemblyHeader + 1;
-	my $lineNb = 0;
-	my $fullLine = floor($length / 7);
-	my $title = "";
-	my $info = "";
+	my %hashHeaderInfo;
+	my $nbOfCell = 7;
+	my $fullLine = floor(($#assemblyHeader + 1) / $nbOfCell);
+	my $restCell = $#assemblyHeader + 1 - $fullLine * $nbOfCell;
 	
+	
+	for (my $i = 0; $i < $#assemblyHeader + 1; $i++) {
+		$hashHeaderInfo{trim($assemblyHeader[$i])} = $assemblyInfo[$i];
+	}
+	
+	my @keysHeaderInfo = keys %hashHeaderInfo;
+	my $cellIndex = 0;
 	
 	open(HTML, ">>", $htmlFile) or die "error open HTML summary $!";
+	for (my $turn = 0; $turn < $fullLine; $turn++) {
+	
+		print HTML "   <tr>\n";
+		for my $header (@keysHeaderInfo[$cellIndex..$cellIndex + $nbOfCell - 1]) {
+			print  HTML "    <th>$header</th>\n";
+		}
+		print HTML "   </tr>\n";
+		
+		print HTML "   <tr>\n";
+		for my $header (@keysHeaderInfo[$cellIndex..$cellIndex + $nbOfCell - 1]) {
+			if ($header =~ /PUBMED/) {
+				print HTML "   <td><a href=https://www.ncbi.nlm.nih.gov/pubmed/?term=".
+				"$hashHeaderInfo{$header} target=\"_blank\">$hashHeaderInfo{$header}</a></td>";
+			}
+			else {
+				print  HTML "    <td>$hashHeaderInfo{$header}</td>\n";
+			}
+		}
+		print HTML "   </tr>\n";
+		
+		$cellIndex +=  $nbOfCell;
+	}
+	
+	print HTML "   <tr>\n";
+	for my $header(@keysHeaderInfo[$cellIndex..$#keysHeaderInfo]) {
+		print  HTML "    <th>$header</th>\n";
+	}
 	print HTML "   <tr>\n";
 	
-	for (my $i = 1; $i < $length + 1; $i++) {
-	
-		$title = trim($assemblyHeader[$i - 1]);
-		print HTML "    <th>$title</th>\n";
-		
-		if ($i % 7 == 0) {
-			my $itr = 0;
-			print HTML "   </tr>\n";
-			print HTML "   <tr>\n";
-			
-			while($itr < 7) {
-				$info = trim(splice(@assemblyInfo, 0, 1));
-				if ($info ne "na" && $itr == 6 &&  $lineNb == 2) {
-					print HTML "   <td><a href=https://www.ncbi.nlm.nih.gov/pubmed/?term=$info target=\"_blank\">$info</a></td>";
-				}
-				else {
-					print HTML "    <td>$info</td>\n";
-				}
-				$itr++;
-			}
-			print HTML "   </tr>\n";
-			print HTML "   <tr>\n";
-			$lineNb++;
+	print HTML "   <tr>\n";
+	for my $header(@keysHeaderInfo[$cellIndex..$#keysHeaderInfo]) {
+		if ($header =~ /PUBMED/ && $hashHeaderInfo{$header} ne "na") {
+			print HTML "   <td><a href=https://www.ncbi.nlm.nih.gov/pubmed/?term=".
+			"$hashHeaderInfo{$header} target=\"_blank\">$hashHeaderInfo{$header}</a></td>";
 		}
-		
-		if ($length % 7 != 0 && $lineNb == $fullLine) {
-		
-			$i++;
-			
-			while ($i < $length + 1) {
-				$title = trim($assemblyHeader[$i - 1]);
-				print HTML "    <th>$title</th>\n";
-				$i++;
-			} 
-			
-			print HTML "   </tr>\n";
-			print HTML "   <tr>\n";
-			
-			my $subLength = $#assemblyInfo + 1;
-			
-			for(my $j = 0; $j < $subLength; $j++) {
-				$info = trim(splice(@assemblyInfo, 0, 1));
-				print HTML "    <td>$info</td>\n";
-			}
-			print HTML "   </tr>\n";
+		else {
+			print  HTML "    <td>$hashHeaderInfo{$header}</td>\n";
 		}
 	}
+	print HTML "   <tr>\n";
+	
 	print HTML "  </table>\n";
 	close(HTML) or die "error close HTML summary $!";
 }
