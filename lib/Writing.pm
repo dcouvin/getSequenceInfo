@@ -292,7 +292,7 @@ sub add_to_file {
 #------------------------------------------------------------------------------
 #   return taxonomic rank of species by tax id
 sub get_taxonomic_rank {
-	my($tax_id, $taxonomic_file ) = @_;
+	my($tax_id, $taxonomic_file) = @_;
 	
 	my ($species,$genus,$family,$order,$class,$phylum);
 	my @tmp_array = ($species, $genus, $family, $order, $class, $phylum);
@@ -386,19 +386,19 @@ sub add_table_content {
 	for (my $turn = 0; $turn < $fullLine; $turn++) {
 	
 		print HTML "   <tr>\n";
-		for my $header (@keysHeaderInfo[$cellIndex..$cellIndex + $nbOfCell - 1]) {
+		for my $header (@assemblyHeader[$cellIndex..$cellIndex + $nbOfCell - 1]) {
 			print  HTML "    <th>$header</th>\n";
 		}
 		print HTML "   </tr>\n";
 		
 		print HTML "   <tr>\n";
-		for my $header (@keysHeaderInfo[$cellIndex..$cellIndex + $nbOfCell - 1]) {
-			if ($header =~ /PUBMED/) {
+		for my $header (@assemblyHeader[$cellIndex..$cellIndex + $nbOfCell - 1]) {
+			if ($header =~ /PUBMED/ && $hashHeaderInfo{$header} ne "na") {
 				print HTML "   <td><a href=https://www.ncbi.nlm.nih.gov/pubmed/?term=".
-				"$hashHeaderInfo{$header} target=\"_blank\">$hashHeaderInfo{$header}</a></td>";
+				"$hashHeaderInfo{$header} target=\"_blank\">$hashHeaderInfo{trim($header)}</a></td>";
 			}
 			else {
-				print  HTML "    <td>$hashHeaderInfo{$header}</td>\n";
+				print  HTML "    <td>$hashHeaderInfo{trim($header)}</td>\n";
 			}
 		}
 		print HTML "   </tr>\n";
@@ -407,20 +407,14 @@ sub add_table_content {
 	}
 	
 	print HTML "   <tr>\n";
-	for my $header(@keysHeaderInfo[$cellIndex..$#keysHeaderInfo]) {
+	for my $header(@assemblyHeader[$cellIndex..$#keysHeaderInfo]) {
 		print  HTML "    <th>$header</th>\n";
 	}
 	print HTML "   <tr>\n";
 	
 	print HTML "   <tr>\n";
-	for my $header(@keysHeaderInfo[$cellIndex..$#keysHeaderInfo]) {
-		if ($header =~ /PUBMED/ && $hashHeaderInfo{$header} ne "na") {
-			print HTML "   <td><a href=https://www.ncbi.nlm.nih.gov/pubmed/?term=".
-			"$hashHeaderInfo{$header} target=\"_blank\">$hashHeaderInfo{$header}</a></td>";
-		}
-		else {
-			print  HTML "    <td>$hashHeaderInfo{$header}</td>\n";
-		}
+	for my $header(@assemblyHeader[$cellIndex..$#keysHeaderInfo]) {
+		print  HTML "    <td>$hashHeaderInfo{trim($header)}</td>\n";		
 	}
 	print HTML "   <tr>\n";
 	
