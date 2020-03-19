@@ -228,7 +228,7 @@ sub help_user_advance {
 			
 		-r example Complete Genome, Chromosome, Scaffold, Contig 
 		
-		-q quantity of assembly if kingdom is specified but not species
+		-q quantity of assembly download the maximum possible if the number is to high
 		perl $0 -k "XXX"  -q 10  -r "XXX" -date  yyyy-mm-dd -get
 		
 		-c specific component of the assembly avoid to download all type of
@@ -466,14 +466,22 @@ sub get_assembly_summary_species {
 		my $chromosomesSummary;
 		my $scaffoldsSummary;
 		my $contigsSummary;
+		my @listComponents;
 		
 		if ($components) { 
 			$specificSummary =  $components . "_summary.xls"; 
+			
+			push @listComponents, $components;
 		} else {
 			$plasmidsSummary = "plasmids_summary.xls";
 			$chromosomesSummary = "chromosomes_summary.xls";
 			$scaffoldsSummary = "scaffolds_summary.xls";
 			$contigsSummary = "contigs_summary.xls";
+			
+			push @listComponents, "plasmid";
+			push @listComponents, "chromosome";
+			push @listComponents, "scaffold";
+			push @listComponents, "contig";
 		}
 		
 		my $fileReport = ".".$fldSep. $repositoryAssembly . $fldSep . $keysList[0]; 
@@ -482,7 +490,7 @@ sub get_assembly_summary_species {
 		
 		my @header = ();
 		
-		open(FILE, $fileReport) or die ("error $!");
+		open(FILE, $fileReport) or die "error open file : $!";
 		while(<FILE>) {
 			chomp;
 			
@@ -493,9 +501,9 @@ sub get_assembly_summary_species {
 				push(@header, $ligne[0]);
 			}
 		}
-		close(FILE) or die ("error $!");
+		close(FILE) or die "error close file : $!";
 		
-		open(HEAD, ">", $summary) or die (" error $!\n");
+		open(HEAD, ">", $summary) or die " error open file : $!";
 		foreach(@header) {
 			print HEAD uc($_) . "\t";
 		}
@@ -503,19 +511,19 @@ sub get_assembly_summary_species {
 		print HEAD "PUBMED\tGC_PERCENT\tENTROPY\tSPECIES\tGENUS\tFAMILY\tORDER\tCLASS\t". 
 								"PHYLUM\tKINGDOM\tCOUNTRY\tHOST\tISOLATION_SOURCE\tA_PERCENT\t".
 									"T_PERCENT\tG_PERCENT\tC_PERCENT\n";
-		close(HEAD) or die ("error $!");
+		close(HEAD) or die "error close file : $!";
 		
 		if ($components) {
-			open(SUM, ">>", $specificSummary) or die ("Could not open $!");
+			open(SUM, ">>", $specificSummary) or die "error open file : $!";
 			print SUM "ID\tASSEMBLY\tDESCRIPTION\tLENGTH\tSTATUS\tLEVEL\t" . 
 						"GC_PERCENT\tA_PERCENT\tT_PERCENT\tG_PERCENT\tC_PERCENT\n";	
-			close(SUM);	
+			close(SUM) or die "error close file : $!";	
 		} else {
 			for my $sum(@summary_list) {
-				open(SUM, ">>", $sum) or die ("Could not open $!");
+				open(SUM, ">>", $sum) or die "error open file : $!";
 				print SUM "ID\tASSEMBLY\tDESCRIPTION\tLENGTH\tSTATUS\tLEVEL\t" . 
 								"GC_PERCENT\tA_PERCENT\tT_PERCENT\tG_PERCENT\tC_PERCENT\n";	
-				close(SUM) or die ("error $!"); 
+				close(SUM) or die "error close file : $!"; 
 			}
 		}	
 		
@@ -535,6 +543,24 @@ sub get_assembly_summary_species {
 		}
 		
 		write_html_summary($summary);
+		
+		my @listComponentFasta = create_component_sequence_file($fldSep, $repositoryAssembly, @listComponents);
+		
+		foreach my $componentFasta (@listComponentFasta) {
+			if ($componentFasta =~ /plasmid/) { 
+				move($componentFasta, $plasmidsRep) or die "move failed: $!"; 
+			}
+			elsif ($componentFasta =~ /chromosome/) {
+				move($componentFasta, $chromosomesRep) or die "move failed: $!";
+			}
+			elsif ($componentFasta =~ /scaffold/) {
+				move($componentFasta, $scaffoldsRep) or die "move failed: $!";
+			}
+			elsif ($componentFasta =~ /contig/) {
+				move($componentFasta, $contigsRep) or die "move failed: $!";
+			}
+		}
+		
 		
 		move($summary, $repositoryAssembly) or die "move failed: $!";
 		move($htmlSummary, $repositoryAssembly) or die "move failed: $!";

@@ -16,7 +16,7 @@ use Treatment;
 our @EXPORT = qw(write_assembly get_taxonomic_ranks write_assembly_component
 									get_fasta_and_report_sequence_ena_assembly 
 										sequence_ena get_fasta_and_report_sequence_ena_other
-											add_to_file write_html_summary);
+											add_to_file write_html_summary create_component_sequence_file);
 
 
 
@@ -59,7 +59,7 @@ sub write_assembly {
 	}
 	close(FIC) or die "close file error $!:";
 	
-	my @header_report = keys(%hashInformations);
+	my @header_report = keys %hashInformations;
 	
 	open(FILE_SUMMARY, ">>", $summary) or die "error open file $!:";
 	foreach my $k(@header) {
@@ -293,8 +293,14 @@ sub add_to_file {
 #   return taxonomic rank of species by tax id
 sub get_taxonomic_rank {
 	my($tax_id, $taxonomic_file) = @_;
+	my $species = "na";
+	my $genus = "na";
+	my $family = "na";
+	my $order = "na";
+	my $class = "na";
+	my $phylum = "na"; 
 	
-	my ($species,$genus,$family,$order,$class,$phylum);
+	# my ($species,$genus,$family,$order,$class,$phylum);
 	my @tmp_array = ($species, $genus, $family, $order, $class, $phylum);
 	
 	open(TFILE, "<", $taxonomic_file) or 
@@ -425,7 +431,13 @@ sub add_table_content {
 #getTaxonomicRanks (function allowing to get taxonomic ranks from Genbank file)
 sub get_taxonomic_rank_genbank {
 	my ($genbank) = @_;
-	my ($species,$genus,$family,$order,$class,$phylum,$kingdomGB);
+	my $species = "na";
+	my $genus = "na";
+	my $family = "na";
+	my $order = "na";
+	my $class = "na";
+	my $phylum = "na"; 
+	my $kingdomGB = "na";
 
 	my $seqio_object = Bio::SeqIO->new(-file => $genbank);
 	my $seq_object = $seqio_object->next_seq;
@@ -446,6 +458,49 @@ sub get_taxonomic_rank_genbank {
 	}
   	
 	return ($species,$genus,$family,$order,$class,$phylum); 
+}
+#------------------------------------------------------------------------------
+#add all sequences components to file
+sub create_component_sequence_file {
+	my ($fldSep, $repository, @listComponent) = @_;
+	
+	my @listFnaFile;
+	
+	opendir(my $dh, $repository) || die "Can't opendir $repository: $!";
+	@listFnaFile = grep{/fna$/} readdir($dh);
+	closedir $dh;
+	
+	my @listComponentFasta;
+
+	foreach my $component (@listComponent) {
+	
+		my $componentFasta = $component.".fasta";
+		
+		foreach my $fnaFile (@listFnaFile) {
+		
+			my $actualFile = $repository . $fldSep . $fnaFile;
+			
+			my $seq;
+			my $seqIO = Bio::SeqIO->new(-format=>'Fasta', -file=>$actualFile);
+			
+			while ($seq = $seqIO->next_seq()) {
+			
+				my $seqDesc = $seq->desc;
+				
+				if ($seqDesc =~ /$component/) {
+					my $seqID = $seq->id;
+					my $seqNuc = $seq->seq;
+					
+					open(FASTA, ">>", $componentFasta) or die "error open file $!:";
+					print FASTA "$seqID $seqDesc\n";
+					print FASTA "$seqNuc\n";
+					close(FASTA) or die "error close file $!:";
+				}
+			}
+		}
+		if (-e $componentFasta) { push @listComponentFasta, $componentFasta; }
+	}
+	return @listComponentFasta;
 }
 
 1;

@@ -129,7 +129,7 @@ sub gc_percent {
 		$hashFlank{$v} += 1;  
 	}
   
-	if (! $hashFlank{'G'}) { hashFlank{'G'} = 0;}
+	if (! $hashFlank{'G'}) { $hashFlank{'G'} = 0;}
 	if (! $hashFlank{'C'}) { $hashFlank{'C'} = 0;}
 
 	if(length($seq) == 0) {
