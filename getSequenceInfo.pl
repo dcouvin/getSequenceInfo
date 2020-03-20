@@ -366,11 +366,12 @@ sub get_assembly_summary_species {
 		while(<SUM>) {
 			chomp;
 			my @tab = split('\t', $_);	
+			
 			if ($_ !~  m/^#/ && ($tab[11] eq $representation) && ($tab[13] =~  m/Full/)) {
 			
 				$species =~ tr/_/ /;    #  delete the underscore in the species name
 				
-				if (($tab[7] =~ /$species/ && $kingdom ne "") or ($kingdom ne "" && $species eq "")) { 
+				if (($tab[7] =~ /$species/i && $kingdom ne "") or ($kingdom ne "" && $species eq "")) { 
 					my @gcfInfo = split(/\//, $tab[19]);  
 					my $gcfName = pop(@gcfInfo);
 					my $realDate = $tab[14];

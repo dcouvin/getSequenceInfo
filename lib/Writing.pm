@@ -92,7 +92,7 @@ sub write_assembly {
 	if ($actualOS eq "linux") {
 		($species, $genus, $family, $order, $class, $phylum) =  get_taxonomic_rank($taxId, "rankedlineage.dmp");
 	}
-	elsif ($actualOS eq "MSWin32") { 
+	else {
 		($species, $genus, $family, $order, $class, $phylum) = get_taxonomic_rank_genbank($genbankFile);
 	}
 	
