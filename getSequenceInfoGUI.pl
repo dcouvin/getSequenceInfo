@@ -108,7 +108,7 @@ my $representationListbox = $window->Scrolled(
 	-selectmode => 'single'
 );
 
-my @representationList = ("Complete genome", "Chromsome", "Scaffold", "Contig"); 
+my @representationList = ("Complete Genome", "Chromsome", "Scaffold", "Contig"); 
 
 $representationListbox->insert('end', @representationList);
 
@@ -234,10 +234,10 @@ sub search {
 	}
 	else {
 		if (defined $kingdom) { $command .= " -k $kingdom"; }
-		if (defined $species) { $command .= " -s \'$species\'"; }
+		if (defined $species) { $command .= " -s \"$species\""; }
 		if (defined $quantity) { $command .= " -q $quantity"; }
-		if (defined $representation) { $command .= " -r \'$representation\'"; }
-		if (defined $component) { $command .= "-c $component";}
+		if (defined $representation) { $command .= " -r \"$representation\""; }
+		if (defined $component) { $command .= " -c $component";}
 		if (defined $date) { $command .= " -date $date"; }
 		print "$command $getSummary\n";
 		system("$command $getSummary");
