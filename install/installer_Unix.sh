@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 echo 'Welcome to getSequenceInfo Unix installer !';
-echo 'cpan must be install';
+echo 'cpan must first be installed on your computer';
 echo '----------------------------------------------------------';
 sudo cpan -i Date::Calc;
 sudo cpan -i Bio::SeqIO
