@@ -13,10 +13,10 @@ perl -v
 Please first verify that Perl is installed in your system by following the above requirments.
 ## Linux or MacOS (Unix)
 ```bash
-bash installer_Unix.sh
+bash install/installer_Unix.sh
 ```
 
 ## Windows
 ```bash
-installer_Windows.bat
+install\installer_Windows.bat
 ```
