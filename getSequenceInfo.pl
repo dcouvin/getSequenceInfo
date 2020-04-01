@@ -54,7 +54,7 @@ my $directory = "refseq";
 	
 my $kingdoms = ""; # kingdom of organism
 
-my $releaseDate = ""; # sequence are download from this release date
+my $releaseDate = "0000-00-00"; # sequence are download from this release date
 
 my $components; # components of the assembly
 
@@ -72,12 +72,23 @@ my $ftpServor = "ftp.ncbi.nlm.nih.gov";
 
 my $fldSep; # folder seperation change by OS 
 
-my @availableKingdoms = ("archaea","bacteria","fungi","invertebrate", "plant", "protozoa", 
-						"vertebrate_mammalian", "vertebrate_other", "viral");  # list of available kingdoms
-		
+my @availableKingdoms = (
+	"archaea",
+	"bacteria",
+	"fungi",
+	"invertebrate",
+	"plant",
+	"protozoa",	
+	"vertebrate_mammalian",
+	"vertebrate_other",
+	"viral"
+);  # list of available kingdoms
+
 my $actualOS; # OS of the computer
 
 my $mainFolder; # folder where the assembly are place
+
+my $assemblyTaxid = ""; # taxid for assembly
 
 
 
@@ -130,6 +141,9 @@ for (my $i=0; $i<=$#ARGV; $i++) {
 	elsif ($ARGV[$i]=~/-output/i or $ARGV[$i]=~/-o/i) {
 		$mainFolder = $ARGV[$i+1];
 	}
+	elsif ($ARGV[$i]=~/-taxid/i) {
+		$assemblyTaxid = $ARGV[$i+1];
+	}
 }
 
 # define folcer separator and OS
@@ -153,12 +167,14 @@ foreach my $kingdom (@kingdomTab) {
 	
 	if ($kingdom eq "viruses") { $kingdom = "viral"; }
 	
+	
 	if (grep(/^$kingdom$/, @availableKingdoms)) {
-		get_assembly_summary_species($releaseDate, $directory, $kingdom, $species, $representation, $fldSep, $actualOS, $mainFolder);
+		get_assembly_summary_species($releaseDate, $directory, $kingdom, $species,$representation, $fldSep, $actualOS, $mainFolder, $assemblyTaxid);
 	}
 }
 
 if ($sequenceID) { sequence_ena($sequenceID); }
+
 
 my ($end_year,$end_month,$end_day, $end_hour,$end_min,$end_sec) = Today_and_Now();
 
@@ -252,8 +268,8 @@ sub program_version {
 }
 #------------------------------------------------------------------------------
 sub get_assembly_summary_species {
-	my ($releaseDate, $directory, $kingdom, $species, $representation, $fldSep, $actualOS, $mainFolder) = @_;
-
+	my ($releaseDate, $directory, $kingdom, $species, $representation, $fldSep, $actualOS, $mainFolder, $assemblyTaxid) = @_;
+	
 	# assembly_summary.txt file from NCBI FTP site
 	my $assemblySummary = "/genomes/$directory/$kingdom/assembly_summary.txt"; 
 	
@@ -309,7 +325,7 @@ sub get_assembly_summary_species {
 	mkdir $kingdomRep unless -d $kingdomRep;
 	
 	# Repository for Assembly
-	my $repositoryAssembly = "assembly_repository_".$species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
+	my $repositoryAssembly = "assembly_repository_".$species."_".$assemblyTaxid."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
 
 	mkdir $repositoryAssembly unless -d $repositoryAssembly;
 	
@@ -346,7 +362,6 @@ sub get_assembly_summary_species {
 	}	
 	
 	my %assemblyReportList;
-	# print "afer rep creation\n";
 	
 	if (-e "assembly_summary.txt") {
 		
@@ -367,11 +382,24 @@ sub get_assembly_summary_species {
 			chomp;
 			my @tab = split('\t', $_);	
 			
-			if ($_ !~  m/^#/ && ($tab[11] eq $representation) && ($tab[13] =~  m/Full/)) {
-			
-				$species =~ tr/_/ /;    #  delete the underscore in the species name
+			if ($_ !~  m/^#/ && $tab[11] eq $representation && $tab[13] =~  m/Full/) {	
 				
-				if (($tab[7] =~ /$species/i && $kingdom ne "") or ($kingdom ne "" && $species eq "")) { 
+				my $indexInfo;
+				my $searchPattern;
+				
+				if ($species ne "") {
+					$indexInfo = 7;
+					$searchPattern = $species;
+				}
+				elsif ($assemblyTaxid ne "") { 
+					$indexInfo = 6; 
+					$searchPattern = $assemblyTaxid;
+				}
+				
+				if ($tab[$indexInfo] =~ /^$searchPattern$/i or ($kingdom ne "" && $searchPattern eq "")) { 
+				
+					print "found $tab[$indexInfo]\n";
+				
 					my @gcfInfo = split(/\//, $tab[19]);  
 					my $gcfName = pop(@gcfInfo);
 					my $realDate = $tab[14];
@@ -381,47 +409,45 @@ sub get_assembly_summary_species {
 					my $dnaFile = $tab[19] . "/" . $gcfName . "_genomic.fna.gz";
 					my $assemblyReport = $tab[19] . "/" . $gcfName . "_assembly_report.txt";
 					
-					if ($releaseDate) {
-						if ($realDate gt $releaseDate) {
+					if ($realDate gt $releaseDate) {
 						
-							if ($quantity) { $quantity -= 1; }
-							
-							$dnaFile = obtain_file($ftpServor, $dnaFile);
-							$genbankFile = obtain_file($ftpServor, $genbankFile);
-							$assemblyReport = obtain_file($ftpServor, $assemblyReport);
-							
-							download_file($ftpServor, $dnaFile);
-							download_file($ftpServor, $genbankFile);
-							download_file($ftpServor, $assemblyReport);
-							
-							# download sequences and check number of "N" characters
-							my $fileFasta = $gcfName."_genomic.fna.gz";
-							my $ucpFasta = $gcfName."_genomic.fna";
-							if (-e $fileFasta) {
-								gunzip $fileFasta => $ucpFasta or die "gunzip failed: $GunzipError\n";
-								move($ucpFasta, $repositoryAssembly) or die "move failed: $!";
-							}
-							
-							# download genome report
-							my $fileReport =  $gcfName."_assembly_report.txt";
-							if (-e $fileReport) {
-								my $fileInformations = $gcfName."_informations.xls";
-								move($fileReport, $repositoryAssembly) or die "move failed: $!";
-							}
-						
-							# download genbank files
-							my $fileGenbank = $gcfName."_genomic.gbff.gz";
-							my $ucpGenbank = $gcfName."_genomic.gbff";
-							if (-e $fileGenbank) {
-								gunzip $fileGenbank => $ucpGenbank or 
-										die "gunzip failed: $GunzipError\n";
-								move($ucpGenbank, $repositoryAssembly) or die "move failed: $!";
-							}
-							
-							# association report and fasta
-							my $fileFastaGenbank = $ucpFasta . "," . $ucpGenbank;
-							$assemblyReportList{$fileReport} = $fileFastaGenbank;
+						$dnaFile = obtain_file($ftpServor, $dnaFile);
+						$genbankFile = obtain_file($ftpServor, $genbankFile);
+						$assemblyReport = obtain_file($ftpServor, $assemblyReport);
+					
+						download_file($ftpServor, $dnaFile);
+						download_file($ftpServor, $genbankFile);
+						download_file($ftpServor, $assemblyReport);
+					
+						# download sequences and check number of "N" characters
+						my $fileFasta = $gcfName."_genomic.fna.gz";
+						my $ucpFasta = $gcfName."_genomic.fna";
+						if (-e $fileFasta) {
+							gunzip $fileFasta => $ucpFasta or die "gunzip failed: $GunzipError\n";
+							move($ucpFasta, $repositoryAssembly) or die "move failed: $!";
 						}
+				
+						# download genome report
+						my $fileReport =  $gcfName."_assembly_report.txt";
+						if (-e $fileReport) {
+							my $fileInformations = $gcfName."_informations.xls";
+							move($fileReport, $repositoryAssembly) or die "move failed: $!";
+						}
+						
+						# download genbank files
+						my $fileGenbank = $gcfName."_genomic.gbff.gz";
+						my $ucpGenbank = $gcfName."_genomic.gbff";
+						if (-e $fileGenbank) {
+							gunzip $fileGenbank => $ucpGenbank or die "gunzip failed: $GunzipError\n";
+							move($ucpGenbank, $repositoryAssembly) or die "move failed: $!";
+						}
+				
+						# association report and fasta
+						my $fileFastaGenbank = $ucpFasta . "," . $ucpGenbank;
+						$assemblyReportList{$fileReport} = $fileFastaGenbank;
+					
+						if ($quantity) { $quantity -= 1; }
+						
 					}
 				}	
 			}
@@ -430,7 +456,7 @@ sub get_assembly_summary_species {
 				last;
 			}
 		}
-		close(SUM) or die("close file error $!");
+		close(SUM) or die "close file error : $!";
 		
 		if (!keys %assemblyReportList) {
 			print "##################################################################\n";
@@ -471,9 +497,9 @@ sub get_assembly_summary_species {
 		
 		if ($components) { 
 			$specificSummary =  $components . "_summary.xls"; 
-			
 			push @listComponents, $components;
-		} else {
+		} 
+		else {
 			$plasmidsSummary = "plasmids_summary.xls";
 			$chromosomesSummary = "chromosomes_summary.xls";
 			$scaffoldsSummary = "scaffolds_summary.xls";
@@ -539,8 +565,8 @@ sub get_assembly_summary_species {
 			my $file3 = $repositoryAssembly . $fldSep . $extGenbank;
 			
 			write_assembly($file1, $file2, $file3, $summary, $repositoryAssembly,
-				$chromosomesSummary, $plasmidsSummary, $scaffoldsSummary,
-					$contigsSummary, $specificSummary, $components, $kingdom,  $actualOS, @header);
+			$chromosomesSummary, $plasmidsSummary, $scaffoldsSummary,
+			$contigsSummary, $specificSummary, $components, $kingdom,  $actualOS, @header);
 		}
 		
 		write_html_summary($summary);
