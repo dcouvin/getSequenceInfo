@@ -16,6 +16,7 @@ my $component;
 my $quantity;
 my $enaID;
 my $output;
+my $taxID;
 
 # window creation 
 my $window = new MainWindow( 
@@ -93,7 +94,17 @@ my $summaryCheckButton = $window->Checkbutton(
 	-offvalue => 'no',
 	-variable => \$getSummary,
 	-background => 'white'
-); 
+);
+
+#label and entry for taxid
+my $taxidLabel = $window->Label( 
+	-text       => 'taxid of the species to search : ', 
+	-background => 'white',
+);
+
+my $taxidEntry = $window->Entry(
+	-textvariable => \$taxID,
+);  
 
 # label and entry for representation
 my $representationLabel = $window->Label( 
@@ -189,6 +200,8 @@ $dateLabel->place(-x => 80, -y => 215);
 $dateEntry->place(-x => 80, -y => 235);
 $summaryLabel->place(-x => 80, -y => 255);
 $summaryCheckButton->place(-x => 80, -y => 275);
+$taxidLabel->place(-x => 80, -y => 297);
+$taxidEntry->place(-x => 80, -y => 315);
 $representationLabel->place(-x => 420, -y => 30);
 $representationListbox->place(-x => 420, -y => 50);
 $representationButton->place(-x => 420, -y => 110);
@@ -202,8 +215,6 @@ $enaEntry->place(-x => 420, -y => 315);
 $outputLabel->place(-x => 420, -y => 340);
 $outputEntry->place(-x => 420, -y => 360);
 $button->place(-x => 300, -y => 400);
-
-
 
 MainLoop;
 
@@ -235,6 +246,7 @@ sub search {
 	else {
 		if (defined $kingdom) { $command .= " -k $kingdom"; }
 		if (defined $species) { $command .= " -s \"$species\""; }
+		if (defined $taxID) { $command .= " -taxid $taxID"; }
 		if (defined $quantity) { $command .= " -q $quantity"; }
 		if (defined $representation) { $command .= " -r \"$representation\""; }
 		if (defined $component) { $command .= " -c $component";}
