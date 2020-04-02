@@ -247,6 +247,9 @@ sub help_user_advance {
 		-s specific species must be combin with -k option
 		perl $0 -k "bacteria"  -s "Helicobacter pylori" -r "XXX" -date  yyyy-mm-dd -get
 		
+		-taxid specific taxid must be combin with -k option
+		perl $0 -k "bacteria"  -taxid 9,24 -r "XXX" -get
+		
 		-date  sequences are search from this date
 		perl $0 -k "XXX"  -s "XXX" -r "XXX" -date  2019-06-01 -get
 		
