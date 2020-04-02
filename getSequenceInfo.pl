@@ -52,7 +52,7 @@ my $version = "1.0";
 
 my $directory = "refseq";
 	
-my $kingdoms = ""; # kingdom of organism
+my $kingdom = ""; # kingdom of organism
 
 my $releaseDate = "0000-00-00"; # sequence are download from this release date
 
@@ -110,7 +110,7 @@ if ($ARGV[0] eq "-version" || $ARGV[0] eq "-v") {
 # requirements
 for (my $i=0; $i<=$#ARGV; $i++) {
     if ($ARGV[$i]=~/-kingdom/i or $ARGV[$i]=~/-k/i) {
-		$kingdoms = $ARGV[$i+1];
+		$kingdom = $ARGV[$i+1];
     }
     elsif ($ARGV[$i]=~/-directory/i or $ARGV[$i]=~/-dir/i) {
     	$directory = $ARGV[$i+1];
@@ -124,7 +124,6 @@ for (my $i=0; $i<=$#ARGV; $i++) {
     }
 	elsif ($ARGV[$i]=~/-species/i or $ARGV[$i]=~/-s/i) {
 		$species = $ARGV[$i+1];
-		$species =~ tr/ /_/;
 	}
 	elsif ($ARGV[$i]=~/-representation/i or $ARGV[$i]=~/-r/i) {
 		$representation = $ARGV[$i+1];
@@ -157,21 +156,33 @@ elsif ($^O =~ /MSWin32/) {
 }
 
 
-# Table containing kingdoms individually
-my @kingdomTab = split(/,/, $kingdoms);
-
 print "Working ...\n"; 
 
-foreach my $kingdom (@kingdomTab) {
-	$kingdom = lc($kingdom);
-	
-	if ($kingdom eq "viruses") { $kingdom = "viral"; }
-	
-	
-	if (grep(/^$kingdom$/, @availableKingdoms)) {
-		get_assembly_summary_species($releaseDate, $directory, $kingdom, $species,$representation, $fldSep, $actualOS, $mainFolder, $assemblyTaxid);
+if ($kingdom eq "viruses") { $kingdom = "viral"; }
+
+if (grep(/^$kingdom$/i, @availableKingdoms)) {
+	if ($species ne "") {
+		my @speciesList = split(/,/, $species);
+		
+		foreach my $actualSpecies (@speciesList) {
+			get_assembly_summary_species($releaseDate, $directory, $kingdom, $actualSpecies,
+			$representation, $fldSep, $actualOS, $mainFolder, $assemblyTaxid);
+		}
 	}
+	elsif ($assemblyTaxid ne "") {
+		my @taxidList = split(/,/, $assemblyTaxid);
+		
+		foreach my $actualID (@taxidList) {
+			get_assembly_summary_species($releaseDate, $directory, $kingdom, $species,
+			$representation, $fldSep, $actualOS, $mainFolder, $actualID);
+		}
+	} 
+	else {
+		get_assembly_summary_species($releaseDate, $directory, $kingdom, $species,
+		$representation, $fldSep, $actualOS, $mainFolder, $assemblyTaxid);
+	}	
 }
+
 
 if ($sequenceID) { sequence_ena($sequenceID); }
 
@@ -379,13 +390,14 @@ sub get_assembly_summary_species {
 		# Read file
 		open (SUM, "assembly_summary.txt") or die "open assembly_summary.txt : $!";
 		while(<SUM>) {
+		
 			chomp;
 			my @tab = split('\t', $_);	
 			
 			if ($_ !~  m/^#/ && $tab[11] eq $representation && $tab[13] =~  m/Full/) {	
 				
-				my $indexInfo;
-				my $searchPattern;
+				my $indexInfo = 0;
+				my $searchPattern = "";
 				
 				if ($species ne "") {
 					$indexInfo = 7;
@@ -396,9 +408,8 @@ sub get_assembly_summary_species {
 					$searchPattern = $assemblyTaxid;
 				}
 				
-				if ($tab[$indexInfo] =~ /^$searchPattern$/i or ($kingdom ne "" && $searchPattern eq "")) { 
+				if (($tab[$indexInfo] =~ /^$searchPattern$/i) or ($kingdom ne "" && $searchPattern eq "")) { 
 				
-					print "found $tab[$indexInfo]\n";
 				
 					my @gcfInfo = split(/\//, $tab[19]);  
 					my $gcfName = pop(@gcfInfo);
