@@ -236,7 +236,7 @@ sub help_user_advance {
 	General :
 		-help or -h  
 		-version or -v display actual program version
-			
+		
 	Options :
 		-get to obtain a new assembly summary
 		perl $0 -k "XXX" -s "XXX"  -r "XXX" -date yyyy-mm-dd -get
@@ -255,7 +255,7 @@ sub help_user_advance {
 		
 		-r allow to display sequences by a specific assembly level
 		perl $0 -k "XXX"  -s "XXX" -r "Complete Genome" -date yyyy-mm-dd -get
-			
+		
 		-r example Complete Genome, Chromosome, Scaffold, Contig 
 		
 		-q quantity of assembly download the maximum possible if the number is to high
@@ -264,9 +264,6 @@ sub help_user_advance {
 		-c specific component of the assembly avoid to download all type of
 		component of the assembly
 		perl $0 -k "XXX"  -q 00  -r "XXX" -c chromosome -date  yyyy-mm-dd -get
-		
-		it is possible to use the -c option when only kingdom is mention
-		perl $0.pl -k XXX -q 00 -r "XXX" -c XXX  -date yyyy-mm-dd
 		
 		-ena allow to download report and fasta file by ena ID 
 		perl $0.pl -ena XXX
@@ -587,20 +584,28 @@ sub get_assembly_summary_species {
 		
 		my @listComponentFasta = create_component_sequence_file($fldSep, $repositoryAssembly, @listComponents);
 		
-		foreach my $componentFasta (@listComponentFasta) {
-			if ($componentFasta =~ /plasmid/) { 
-				move($componentFasta, $plasmidsRep) or die "move failed: $!"; 
-			}
-			elsif ($componentFasta =~ /chromosome/) {
-				move($componentFasta, $chromosomesRep) or die "move failed: $!";
-			}
-			elsif ($componentFasta =~ /scaffold/) {
-				move($componentFasta, $scaffoldsRep) or die "move failed: $!";
-			}
-			elsif ($componentFasta =~ /contig/) {
-				move($componentFasta, $contigsRep) or die "move failed: $!";
+		if ($components) {
+			foreach my $componentFasta (@listComponentFasta) {
+				move($componentFasta, $specificRep) or die "move failed: $!"; 
 			}
 		}
+		else {
+			foreach my $componentFasta (@listComponentFasta) {
+				if ($componentFasta =~ /plasmid/) { 
+					move($componentFasta, $plasmidsRep) or die "move failed: $!"; 
+				}
+				elsif ($componentFasta =~ /chromosome/) {
+					move($componentFasta, $chromosomesRep) or die "move failed: $!";
+				}
+				elsif ($componentFasta =~ /scaffold/) {
+					move($componentFasta, $scaffoldsRep) or die "move failed: $!";
+				}
+				elsif ($componentFasta =~ /contig/) {
+					move($componentFasta, $contigsRep) or die "move failed: $!";
+				}
+			}
+		}
+		
 		
 		
 		move($summary, $repositoryAssembly) or die "move failed: $!";

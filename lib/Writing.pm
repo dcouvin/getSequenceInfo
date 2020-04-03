@@ -109,8 +109,8 @@ sub write_assembly {
 	close(FIC3) or die "Close file error $!:";	
 	
 	print FILE_SUMMARY $pubmedId . "\t" . $GCpercent . "\t" . $entropyLevel . "\t" . $species . "\t" . $genus . "\t" . $family ."\t" . 
-												$order . "\t" . $class . "\t" . $phylum . "\t" . $kingdom . "\t" . $country . "\t" . $host . "\t" . $isoSource  . "\t" .
-													$a_percent . "\t" . $t_percent . "\t" . $g_percent . "\t" . $c_percent  ."\n" ; 
+		$order . "\t" . $class . "\t" . $phylum . "\t" . $kingdom . "\t" . $country . "\t" . $host . "\t" . $isoSource  . "\t" .
+			$a_percent . "\t" . $t_percent . "\t" . $g_percent . "\t" . $c_percent  ."\n" ; 
 									
 	close(FILE_SUMMARY) or die "close file error $!:";
 	
@@ -152,16 +152,17 @@ sub write_assembly_component {
 		
 		@desc = split(',', $seqDesc);
 		
+		if ($desc[1]) { $level = $desc[1]; }
+		
 		if ($components) {
 			if ($desc[0] =~ /$components/) {
+				$status = $components;
 				$info = $seqID . "\t" . $assembly_name ."\t" . $seqDesc . "\t" . $seqLength . "\t" . $status . "\t" . $level ."\t"
 							. $gcpercent."\t". $a_percent ."\t". $t_percent ."\t". $g_percent ."\t". $c_percent . "\n";
 				add_to_file($specific_summary, $info);
 			}
 		}	
 		else {
-			if ($desc[1]) {$level = $desc[1];}
-			
 			if ($desc[0] =~ /chromosome/) {
 				$status = "chromosome";
 				$info = $seqID . "\t" . $assembly_name ."\t" . $seqDesc . "\t" . $seqLength . "\t" . $status . "\t" . $level ."\t"
@@ -478,10 +479,10 @@ sub create_component_sequence_file {
 		
 		foreach my $fnaFile (@listFnaFile) {
 		
-			my $actualFile = $repository . $fldSep . $fnaFile;
+			# my $actualFile = $repository . $fldSep . $fnaFile;
 			
 			my $seq;
-			my $seqIO = Bio::SeqIO->new(-format=>'Fasta', -file=>$actualFile);
+			my $seqIO = Bio::SeqIO->new(-format=>'Fasta', -file=>$repository . $fldSep . $fnaFile);
 			
 			while ($seq = $seqIO->next_seq()) {
 			
@@ -502,5 +503,6 @@ sub create_component_sequence_file {
 	}
 	return @listComponentFasta;
 }
+
 
 1;
