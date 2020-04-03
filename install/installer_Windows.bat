@@ -1,6 +1,7 @@
 @ECHO OFF
 ECHO Installation of needed Perl Modules:
 ECHO Please note that ActivePerl (https://www.activestate.com/products/activeperl/downloads/) must be installed on your Microsoft Windows computer before running the following commands.
+ppm install bioperl
 ppm install Date::Calc
 ppm install Bio::SeqIO
 ppm install LWP::Simple
