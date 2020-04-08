@@ -4,7 +4,7 @@ use warnings;
 
 use Exporter qw(import);
 
-our @EXPORT = qw(trim trim_array);
+our @EXPORT = qw(trim trim_array empty_folder);
 
 
 # remove back and front spaces
@@ -24,6 +24,7 @@ sub trim_array {
 	return @array;
 }
 #------------------------------------------------------------------------------
-
+# check if folder is empty
+sub empty_folder {!<$_[0]/*>}
 
 1;

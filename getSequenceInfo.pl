@@ -165,7 +165,7 @@ if (grep(/^$kingdom$/i, @availableKingdoms)) {
 		my @speciesList = split(/,/, $species);
 		
 		foreach my $actualSpecies (@speciesList) {
-			get_assembly_summary_species($releaseDate, $directory, $kingdom, $actualSpecies,
+			get_assembly_summary_species($quantity, $releaseDate, $directory, $kingdom, $actualSpecies,
 			$representation, $fldSep, $actualOS, $mainFolder, $assemblyTaxid);
 		}
 	}
@@ -173,18 +173,24 @@ if (grep(/^$kingdom$/i, @availableKingdoms)) {
 		my @taxidList = split(/,/, $assemblyTaxid);
 		
 		foreach my $actualID (@taxidList) {
-			get_assembly_summary_species($releaseDate, $directory, $kingdom, $species,
+			get_assembly_summary_species($quantity, $releaseDate, $directory, $kingdom, $species,
 			$representation, $fldSep, $actualOS, $mainFolder, $actualID);
 		}
 	} 
 	else {
-		get_assembly_summary_species($releaseDate, $directory, $kingdom, $species,
+		get_assembly_summary_species($quantity, $releaseDate, $directory, $kingdom, $species,
 		$representation, $fldSep, $actualOS, $mainFolder, $assemblyTaxid);
 	}	
 }
 
 
-if ($sequenceID) { sequence_ena($sequenceID); }
+if ($sequenceID) { 
+	my @sequenceIDList = split(/,/, $sequenceID);
+	
+	foreach my $enaID (@sequenceIDList) {
+		sequence_ena($enaID);
+	}
+}
 
 
 my ($end_year,$end_month,$end_day, $end_hour,$end_min,$end_sec) = Today_and_Now();
@@ -279,7 +285,7 @@ sub program_version {
 }
 #------------------------------------------------------------------------------
 sub get_assembly_summary_species {
-	my ($releaseDate, $directory, $kingdom, $species, $representation, $fldSep, $actualOS, $mainFolder, $assemblyTaxid) = @_;
+	my ($quantity, $releaseDate, $directory, $kingdom, $species, $representation, $fldSep, $actualOS, $mainFolder, $assemblyTaxid) = @_;
 	
 	# assembly_summary.txt file from NCBI FTP site
 	my $assemblySummary = "/genomes/$directory/$kingdom/assembly_summary.txt"; 
@@ -318,10 +324,7 @@ sub get_assembly_summary_species {
 			close(KIN) or die "error close file $!:";
 		}
 	}
-	# print "after download summary\n";
 	
-	# create $kingdomRep
-	# to check if Repository already exist
 	my $oldRep = "";
 	
 	my $kingdomRep;
@@ -332,7 +335,6 @@ sub get_assembly_summary_species {
 	else { 
 		$kingdomRep = $kingdom."_".$start_year."_".$start_month."_".$start_day; 
 	}
-	#my $kingdomRep = $kingdom."_".$start_year."_".$start_month."_".$start_day;
 	mkdir $kingdomRep unless -d $kingdomRep;
 	
 	# Repository for Assembly
@@ -398,17 +400,20 @@ sub get_assembly_summary_species {
 				
 				my $indexInfo = 0;
 				my $searchPattern = "";
+				my $regex = "";
 				
 				if ($species ne "") {
 					$indexInfo = 7;
 					$searchPattern = $species;
+					$regex = qr/$searchPattern/i;
 				}
 				elsif ($assemblyTaxid ne "") { 
 					$indexInfo = 6; 
 					$searchPattern = $assemblyTaxid;
+					$regex = qr/^$searchPattern$/i;
 				}
 				
-				if (($tab[$indexInfo] =~ /^$searchPattern$/i) or ($kingdom ne "" && $searchPattern eq "")) { 
+				if (($tab[$indexInfo] =~ $regex) or ($kingdom ne "" && $searchPattern eq "")) { 
 				
 				
 					my @gcfInfo = split(/\//, $tab[19]);  
@@ -472,15 +477,13 @@ sub get_assembly_summary_species {
 		if (!keys %assemblyReportList) {
 			print "##################################################################\n";
 			print "Actual requirements are not found or are invalid for the database\n";
-			print "It could be an error on the species name or the date\n";
-			print "Check if the name is correctly write ex : Escherichia coli\n";
-			print "The date could be too advances try again with an earlier date\n";
-			print "Please try again with other requirements\n";
+			print "$species $kingdom $assemblyTaxid\n";
 			print "##################################################################\n\n";
 			
 			if ($actualOS eq "linux") { unlink glob "*.dmp *.gz"  or die "for file *.dmp *.gz $!:"; }
 			
-			rmdir $kingdomRep or die "fail remove directory $!:";
+			my $emptyFolder = empty_folder($kingdomRep);
+			if ($emptyFolder == 1) { rmdir $kingdomRep or die "fail remove directory $!:"; }
 			rmdir $repositoryAssembly or die "fail remove directory $!:"; 
 			
 			if ($components) {							
@@ -492,144 +495,140 @@ sub get_assembly_summary_species {
 				rmdir $scaffoldsRep or die "fail remove directory $!:"; 
 				rmdir $contigsRep or die "fail remove directory $!:";
 			}
-			exit(); 
 		}
-		
-		# write summary files 
-		my @keysList = keys %assemblyReportList;
-		my $summary = "summary.xls";
-		my $htmlSummary = "summary.html";
-		my $specificSummary;
-		my $plasmidsSummary;
-		my $chromosomesSummary;
-		my $scaffoldsSummary;
-		my $contigsSummary;
-		my @listComponents;
-		
-		if ($components) { 
-			$specificSummary =  $components . "_summary.xls"; 
-			push @listComponents, $components;
-		} 
 		else {
-			$plasmidsSummary = "plasmids_summary.xls";
-			$chromosomesSummary = "chromosomes_summary.xls";
-			$scaffoldsSummary = "scaffolds_summary.xls";
-			$contigsSummary = "contigs_summary.xls";
+			# write summary files 
+			my @keysList = keys %assemblyReportList;
+			my $summary = "summary.xls";
+			my $htmlSummary = "summary.html";
+			my $specificSummary;
+			my $plasmidsSummary;
+			my $chromosomesSummary;
+			my $scaffoldsSummary;
+			my $contigsSummary;
+			my @listComponents;
 			
-			push @listComponents, "plasmid";
-			push @listComponents, "chromosome";
-			push @listComponents, "scaffold";
-			push @listComponents, "contig";
-		}
-		
-		my $fileReport = ".".$fldSep. $repositoryAssembly . $fldSep . $keysList[0]; 
-		
-		my @summary_list = ($plasmidsSummary, $chromosomesSummary, $scaffoldsSummary, $contigsSummary);
-		
-		my @header = ();
-		
-		open(FILE, $fileReport) or die "error open file : $!";
-		while(<FILE>) {
-			chomp;
-			
-			$_ =~ s/^#*//;
-			
-			if($_ =~ /:/){
-				my @ligne = split(':', $_);
-				push(@header, $ligne[0]);
+			if ($components) { 
+				$specificSummary =  $components . "_summary.xls"; 
+				push @listComponents, $components;
+			} 
+			else {
+				$plasmidsSummary = "plasmids_summary.xls";
+				$chromosomesSummary = "chromosomes_summary.xls";
+				$scaffoldsSummary = "scaffolds_summary.xls";
+				$contigsSummary = "contigs_summary.xls";
+				
+				push @listComponents, "plasmid";
+				push @listComponents, "chromosome";
+				push @listComponents, "scaffold";
+				push @listComponents, "contig";
 			}
-		}
-		close(FILE) or die "error close file : $!";
-		
-		open(HEAD, ">", $summary) or die " error open file : $!";
-		foreach(@header) {
-			print HEAD uc($_) . "\t";
-		}
-		
-		print HEAD "PUBMED\tGC_PERCENT\tENTROPY\tSPECIES\tGENUS\tFAMILY\tORDER\tCLASS\t". 
-								"PHYLUM\tKINGDOM\tCOUNTRY\tHOST\tISOLATION_SOURCE\tA_PERCENT\t".
-									"T_PERCENT\tG_PERCENT\tC_PERCENT\n";
-		close(HEAD) or die "error close file : $!";
-		
-		if ($components) {
-			open(SUM, ">>", $specificSummary) or die "error open file : $!";
-			print SUM "ID\tASSEMBLY\tDESCRIPTION\tLENGTH\tSTATUS\tLEVEL\t" . 
-						"GC_PERCENT\tA_PERCENT\tT_PERCENT\tG_PERCENT\tC_PERCENT\n";	
-			close(SUM) or die "error close file : $!";	
-		} else {
-			for my $sum(@summary_list) {
-				open(SUM, ">>", $sum) or die "error open file : $!";
+			
+			my $fileReport = ".".$fldSep. $repositoryAssembly . $fldSep . $keysList[0]; 
+			
+			my @summary_list = ($plasmidsSummary, $chromosomesSummary, $scaffoldsSummary, $contigsSummary);
+			
+			my @header = ();
+			
+			open(FILE, $fileReport) or die "error open file : $!";
+			while(<FILE>) {
+				chomp;
+				
+				$_ =~ s/^#*//;
+				
+				if($_ =~ /:/){
+					my @ligne = split(':', $_);
+					push(@header, $ligne[0]);
+				}
+			}
+			close(FILE) or die "error close file : $!";
+			
+			open(HEAD, ">", $summary) or die " error open file : $!";
+			foreach(@header) {
+				print HEAD uc($_) . "\t";
+			}
+			
+			print HEAD "PUBMED\tGC_PERCENT\tENTROPY\tSPECIES\tGENUS\tFAMILY\tORDER\tCLASS\t". 
+									"PHYLUM\tKINGDOM\tCOUNTRY\tHOST\tISOLATION_SOURCE\tA_PERCENT\t".
+										"T_PERCENT\tG_PERCENT\tC_PERCENT\n";
+			close(HEAD) or die "error close file : $!";
+			
+			if ($components) {
+				open(SUM, ">>", $specificSummary) or die "error open file : $!";
 				print SUM "ID\tASSEMBLY\tDESCRIPTION\tLENGTH\tSTATUS\tLEVEL\t" . 
-								"GC_PERCENT\tA_PERCENT\tT_PERCENT\tG_PERCENT\tC_PERCENT\n";	
-				close(SUM) or die "error close file : $!"; 
-			}
-		}	
-		
-		# print "$actualOS\n";
-		
-		for my $file (@keysList) {
-			my $file1 = $repositoryAssembly . $fldSep . $file;
-			my @fastaGenbank = split(",", $assemblyReportList{$file});
-			my $extFasta = $fastaGenbank[0];
-			my $extGenbank = $fastaGenbank[1];
-			my $file2 = $repositoryAssembly . $fldSep . $extFasta;
-			my $file3 = $repositoryAssembly . $fldSep . $extGenbank;
+							"GC_PERCENT\tA_PERCENT\tT_PERCENT\tG_PERCENT\tC_PERCENT\n";	
+				close(SUM) or die "error close file : $!";	
+			} else {
+				for my $sum(@summary_list) {
+					open(SUM, ">>", $sum) or die "error open file : $!";
+					print SUM "ID\tASSEMBLY\tDESCRIPTION\tLENGTH\tSTATUS\tLEVEL\t" . 
+									"GC_PERCENT\tA_PERCENT\tT_PERCENT\tG_PERCENT\tC_PERCENT\n";	
+					close(SUM) or die "error close file : $!"; 
+				}
+			}	
 			
-			write_assembly($file1, $file2, $file3, $summary, $repositoryAssembly,
-			$chromosomesSummary, $plasmidsSummary, $scaffoldsSummary,
-			$contigsSummary, $specificSummary, $components, $kingdom,  $actualOS, @header);
-		}
-		
-		write_html_summary($summary);
-		
-		my @listComponentFasta = create_component_sequence_file($fldSep, $repositoryAssembly, @listComponents);
-		
-		if ($components) {
-			foreach my $componentFasta (@listComponentFasta) {
-				move($componentFasta, $specificRep) or die "move failed: $!"; 
+			for my $file (@keysList) {
+				my $file1 = $repositoryAssembly . $fldSep . $file;
+				my @fastaGenbank = split(",", $assemblyReportList{$file});
+				my $extFasta = $fastaGenbank[0];
+				my $extGenbank = $fastaGenbank[1];
+				my $file2 = $repositoryAssembly . $fldSep . $extFasta;
+				my $file3 = $repositoryAssembly . $fldSep . $extGenbank;
+				
+				write_assembly($file1, $file2, $file3, $summary, $repositoryAssembly,
+				$chromosomesSummary, $plasmidsSummary, $scaffoldsSummary,
+				$contigsSummary, $specificSummary, $components, $kingdom,  $actualOS, @header);
 			}
-		}
-		else {
-			foreach my $componentFasta (@listComponentFasta) {
-				if ($componentFasta =~ /plasmid/) { 
-					move($componentFasta, $plasmidsRep) or die "move failed: $!"; 
-				}
-				elsif ($componentFasta =~ /chromosome/) {
-					move($componentFasta, $chromosomesRep) or die "move failed: $!";
-				}
-				elsif ($componentFasta =~ /scaffold/) {
-					move($componentFasta, $scaffoldsRep) or die "move failed: $!";
-				}
-				elsif ($componentFasta =~ /contig/) {
-					move($componentFasta, $contigsRep) or die "move failed: $!";
+			
+			write_html_summary($summary);
+			
+			my @listComponentFasta = create_component_sequence_file($fldSep, $repositoryAssembly, @listComponents);
+			
+			if ($components) {
+				foreach my $componentFasta (@listComponentFasta) {
+					move($componentFasta, $specificRep) or die "move failed: $!"; 
 				}
 			}
+			else {
+				foreach my $componentFasta (@listComponentFasta) {
+					if ($componentFasta =~ /plasmid/) { 
+						move($componentFasta, $plasmidsRep) or die "move failed: $!"; 
+					}
+					elsif ($componentFasta =~ /chromosome/) {
+						move($componentFasta, $chromosomesRep) or die "move failed: $!";
+					}
+					elsif ($componentFasta =~ /scaffold/) {
+						move($componentFasta, $scaffoldsRep) or die "move failed: $!";
+					}
+					elsif ($componentFasta =~ /contig/) {
+						move($componentFasta, $contigsRep) or die "move failed: $!";
+					}
+				}
+			}
+			
+			
+			move($summary, $repositoryAssembly) or die "move failed: $!";
+			move($htmlSummary, $repositoryAssembly) or die "move failed: $!";
+			
+			if ($components) {
+				move($specificSummary, $specificRep) or die "move failed: $!";
+				move($specificRep, $repositoryAssembly . $fldSep . $specificRep) or die "move failed: $!";
+			}
+			else {
+				move($plasmidsSummary, $plasmidsRep) or die "move failed: $!";
+				move($chromosomesSummary, $chromosomesRep) or die "move failed: $!";
+				move($scaffoldsSummary, $scaffoldsRep) or die "move failed: $!";
+				move($contigsSummary, $contigsRep) or die "move failed: $!";
+				move($plasmidsRep, $repositoryAssembly . $fldSep . $plasmidsRep) or die "move failed: $!";
+				move($chromosomesRep, $repositoryAssembly . $fldSep . $chromosomesRep) or die "move failed: $!";
+				move($scaffoldsRep, $repositoryAssembly . $fldSep . $scaffoldsRep) or die "move failed: $!";
+				move($contigsRep, $repositoryAssembly . $fldSep . $contigsRep) or die "move failed: $!";
+			}
+			move( $repositoryAssembly, $kingdomRep . $fldSep . $repositoryAssembly) or die "move failed: $!";
+			
+			if ($actualOS eq "linux") { unlink glob "*.dmp"  or die "for file *.dmp $!:"; }
+			unlink glob "*.gz  *.dmp sequence.txt"  or die "$!: for file *.gz sequence.txt";
 		}
-		
-		
-		
-		move($summary, $repositoryAssembly) or die "move failed: $!";
-		move($htmlSummary, $repositoryAssembly) or die "move failed: $!";
-		
-		if ($components) {
-			move($specificSummary, $specificRep) or die "move failed: $!";
-			move($specificRep, $repositoryAssembly . $fldSep . $specificRep) or die "move failed: $!";
-		}
-		else {
-			move($plasmidsSummary, $plasmidsRep) or die "move failed: $!";
-			move($chromosomesSummary, $chromosomesRep) or die "move failed: $!";
-			move($scaffoldsSummary, $scaffoldsRep) or die "move failed: $!";
-			move($contigsSummary, $contigsRep) or die "move failed: $!";
-			move($plasmidsRep, $repositoryAssembly . $fldSep . $plasmidsRep) or die "move failed: $!";
-			move($chromosomesRep, $repositoryAssembly . $fldSep . $chromosomesRep) or die "move failed: $!";
-			move($scaffoldsRep, $repositoryAssembly . $fldSep . $scaffoldsRep) or die "move failed: $!";
-			move($contigsRep, $repositoryAssembly . $fldSep . $contigsRep) or die "move failed: $!";
-		}
-		move( $repositoryAssembly, $kingdomRep . $fldSep . $repositoryAssembly) or die "move failed: $!";
-		
-		if ($actualOS eq "linux") { unlink glob "*.dmp"  or die "for file *.dmp $!:"; }
-		unlink glob "*.gz  *.dmp sequence.txt"  or die "$!: for file *.gz sequence.txt";
-
 	} 
 }
 
