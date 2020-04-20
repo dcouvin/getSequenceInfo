@@ -33,60 +33,57 @@ my $homeMessage = "Thanks for using getSequenceInfo tool\n\n";
 my $homeLabel = $window->Label( 
   -text       => $homeMessage, 
   -background => 'white', 
-); 
+)->pack(); 
 
 #  label and listbox for kingdom
 my $kingdomLabel = $window->Label(
 	-text => 'select the name of the kingdom : ',
 	-background => 'white',
-);
+)->place(-x => 80, -y => 30);
 
 
-my @kingdomList = qw/archaea bacteria fungi invertebrate plant protozoa
-										vertebrate_mammalian vertebrate_other 
-										viral/;
+my @kingdomList = qw/archaea bacteria fungi invertebrate plant protozoa 
+									vertebrate_mammalian vertebrate_other viral/;
 
+my $kingdomPos = 50;
 
-my $kingdomListbox = $window->Scrolled(
-	"Listbox",
-	-scrollbars => 'oe',
-	-selectmode => 'single'
-); 
+foreach my $subKingdom(@kingdomList) {
+	my $kingdomRadio = $window->Radiobutton(
+		-text => $subKingdom,
+		-value => $subKingdom,
+		-variable => \$kingdom,
+		-width => 20,
+		-indicatoron => 0,
+	)->place(-x => 80, -y => $kingdomPos);
+	$kingdomPos += 22;
+}
 
-$kingdomListbox->insert("end", @kingdomList); 
-
-$kingdomListbox->configure(-height => 5);
-
-my $kingdomButton = $window->Button(
-	-text => 'add',
-	-command => \&addKingdom,
-);
-
+	
 #label and entry for species
 my $speciesLabel = $window->Label( 
 	-text       => 'name of the species to search : ', 
 	-background => 'white', 
-); 
+)->place(-x => 80, -y => 270); 
 
 my $speciesEntry = $window->Entry(
 	-textvariable => \$species,
-); 
+)->place(-x => 80, -y => 290); 
 
 #label and entry for date
 my $dateLabel = $window->Label( 
 	-text       => 'assembly from this date (yyyy-mm-dd) : ', 
 	-background => 'white', 
-); 
+)->place(-x => 80, -y => 315); 
 
 my $dateEntry = $window->Entry(
 	-textvariable => \$date,
-); 
+)->place(-x => 80, -y => 335); 
 
 #label and listbox for summary
 my $summaryLabel = $window->Label( 
 	-text       => 'obtain last updates from the servor : ', 
 	-background => 'white',
-); 
+)->place(-x => 80, -y => 360); 
 
 my $summaryCheckButton = $window->Checkbutton(
 	-text => 'yes',
@@ -94,147 +91,100 @@ my $summaryCheckButton = $window->Checkbutton(
 	-offvalue => 'no',
 	-variable => \$getSummary,
 	-background => 'white'
-);
+)->place(-x => 80, -y => 380);
 
 #label and entry for taxid
 my $taxidLabel = $window->Label( 
 	-text       => 'taxid of the species to search : ', 
 	-background => 'white',
-);
+)->place(-x => 80, -y => 400);
 
 my $taxidEntry = $window->Entry(
 	-textvariable => \$taxID,
-);  
+)->place(-x => 80, -y => 420);  
 
 # label and entry for representation
 my $representationLabel = $window->Label( 
 	-text       => 'assembly level   : ', 
 	-background => 'white',
-); 
+)->place(-x => 420, -y => 30); 
 
-
-my $representationListbox = $window->Scrolled( 
-	"Listbox",
-	-scrollbars => 'oe',
-	-selectmode => 'single'
-);
 
 my @representationList = ("Complete Genome", "Chromsome", "Scaffold", "Contig"); 
 
-$representationListbox->insert('end', @representationList);
+my $representationPos = 50;
 
-$representationListbox->configure(-height => 3);
-
-my $representationButton = $window->Button(
-	-text    => 'add', 
-	-command => \&addRepresentation, 
-); 
+foreach my $subRepresentation (@representationList) {
+	my $representationRadio = $window->Radiobutton(
+		-text => $subRepresentation,
+		-value => $subRepresentation,
+		-variable => \$representation,
+		-width => 20,
+		-indicatoron => 0,
+	)->place(-x => 420, -y => $representationPos);
+	$representationPos += 22;
+}
 
 # label and entry for componenents
 my $componenentsLabel = $window->Label( 
 	-text       => 'component : ',
 	-background => 'white', 
-); 
+)->place(-x => 420, -y => 145); 
 
 my @componentList = qw/chromosome plasmid contig scaffold/; 
 
-my $componentsListbox = $window->Scrolled( 
-	"Listbox",
-	-scrollbars => 'oe',
-	-selectmode => 'single'
-);
+my $componentPos = 165;
 
-$componentsListbox->insert('end', @componentList);
-
-$componentsListbox->configure(-height => 3);
-
-my $componentButton = $window->Button(
-	-text => 'add',
-	-command => \&getComponent,
-);
+foreach my $subComponent (@componentList) {
+	my $componentRadio = $window->Radiobutton(
+		-text => $subComponent,
+		-value => $subComponent,
+		-variable => \$component,
+		-width => 20,
+		-indicatoron => 0,
+	)->place(-x => 420, -y => $componentPos);
+	$componentPos += 22;
+}
 
 # label and entry for quantity
 my $quantityLabel = $window->Label( 
 	-text       => 'quantity of assembly : ', 
 	-background => 'white', 
-); 
+)->place(-x => 420, -y => 255); 
 
 my $quantityEntry = $window->Entry( 
 	-textvariable => \$quantity,
-);  
+)->place(-x => 420, -y => 275);  
 
 # label and entry for ena
 my $enaLabel = $window->Label( 
 	-text       => 'download sequences (ena ID)  : ', 
 	-background => 'white', 
-); 
+)->place(-x => 420, -y => 295); 
 
 my $enaEntry = $window->Entry( 
 	-textvariable => \$enaID,
-); 
+)->place(-x => 420, -y => 315); 
 
 # label and entry to rename the output
 my $outputLabel = $window->Label( 
 	-text       => 'name of the folder : ', 
 	-background => 'white', 
-); 
+)->place(-x => 420, -y => 340); 
 
 my $outputEntry = $window->Entry(
 	-textvariable => \$output,
-);  
+)->place(-x => 420, -y => 360);  
 
 # Affichage d'un bouton pour fermer la fenêtre 
 my $button = $window->Button( 
-	-text    => 'search', 
+	-text    => 'start search', 
 	-command => \&search, 
-); 
+)->place(-x => 300, -y => 440); 
 
-# placement
-$homeLabel->pack();
-$kingdomLabel->place(-x => 80, -y => 30);
-$kingdomListbox->place( -x => 80, -y => 50);
-$kingdomButton->place(-x => 80, -y => 145);
-$speciesLabel->place(-x => 80, -y => 175);
-$speciesEntry->place(-x => 80, -y => 195);
-$dateLabel->place(-x => 80, -y => 215);
-$dateEntry->place(-x => 80, -y => 235);
-$summaryLabel->place(-x => 80, -y => 255);
-$summaryCheckButton->place(-x => 80, -y => 275);
-$taxidLabel->place(-x => 80, -y => 297);
-$taxidEntry->place(-x => 80, -y => 315);
-$representationLabel->place(-x => 420, -y => 30);
-$representationListbox->place(-x => 420, -y => 50);
-$representationButton->place(-x => 420, -y => 110);
-$componenentsLabel->place(-x => 420, -y => 145);
-$componentsListbox->place(-x => 420, -y => 165);
-$componentButton->place(-x => 420, -y => 225);
-$quantityLabel->place(-x => 420, -y => 255);
-$quantityEntry->place(-x => 420, -y => 275);
-$enaLabel->place(-x => 420, -y => 295);
-$enaEntry->place(-x => 420, -y => 315);
-$outputLabel->place(-x => 420, -y => 340);
-$outputEntry->place(-x => 420, -y => 360);
-$button->place(-x => 300, -y => 400);
 
 MainLoop;
 
-sub addKingdom {
-	my @selection = $kingdomListbox-> curselection;
-	my $index = pop @selection;
-	$kingdom = $kingdomList[$index];
-}
-
-sub addRepresentation {
-	my @selection = $representationListbox-> curselection;
-	my $index = pop @selection;
-	$representation = $representationList[$index];
-}
-
-sub getComponent {
-	my @selection = $componentsListbox-> curselection;
-	my $index = pop @selection;
-	$component = $componentList[$index];
-}
 
 sub search {
 	my $command = "perl getSequenceInfo.pl";
