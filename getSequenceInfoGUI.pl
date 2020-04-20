@@ -188,7 +188,8 @@ MainLoop;
 
 sub search {
 	my $command = "perl getSequenceInfo.pl";
-	$getSummary = $getSummary eq "yes" ? "-get" : "";
+	
+	if (defined $getSummary) {$getSummary = $getSummary eq "yes" ? "-get" : ""; }
 	
 	if (defined $enaID) {
 		system("$command -ena $enaID");
