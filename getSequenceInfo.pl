@@ -287,7 +287,7 @@ sub help_user_advance {
 		perl $0 -ena BN000065
 		
 		-fastq allow to download fastq sequence on ena
-		perl $0 -fastq DRR00001
+		perl $0 -fastq DRR001001
 		
 HEREDOC
 }
