@@ -17,6 +17,7 @@ my $quantity;
 my $enaID;
 my $output;
 my $taxID;
+my $fastqID;
 
 # window creation 
 my $window = new MainWindow( 
@@ -174,13 +175,24 @@ my $outputLabel = $window->Label(
 
 my $outputEntry = $window->Entry(
 	-textvariable => \$output,
-)->place(-x => 420, -y => 360);  
+)->place(-x => 420, -y => 360); 
+
+
+# label and entry to rename the output
+my $fastqLabel = $window->Label( 
+	-text       => 'run accession id for fastq : ', 
+	-background => 'white', 
+)->place(-x => 420, -y => 380); 
+
+my $fastqEntry = $window->Entry(
+	-textvariable => \$fastqID,
+)->place(-x => 420, -y => 400);  
 
 # Affichage d'un bouton pour fermer la fenêtre 
 my $button = $window->Button( 
 	-text    => 'start search', 
 	-command => \&search, 
-)->place(-x => 300, -y => 440); 
+)->place(-x => 280, -y => 460); 
 
 
 MainLoop;
@@ -194,6 +206,9 @@ sub search {
 	if (defined $enaID) {
 		system("$command -ena $enaID");
 	}
+	elsif (defined $fastqID) {
+		system("$command -fastq $fastqID");
+	}
 	else {
 		if (defined $kingdom) { $command .= " -k $kingdom"; }
 		if (defined $species) { $command .= " -s \"$species\""; }
@@ -202,8 +217,9 @@ sub search {
 		if (defined $representation) { $command .= " -r \"$representation\""; }
 		if (defined $component) { $command .= " -c $component";}
 		if (defined $date) { $command .= " -date $date"; }
-		print "$command $getSummary\n";
-		system("$command $getSummary");
+		if (defined $getSummary) { $command .= " $getSummary"; }
+		print "$command\n";
+		system("$command");
 	}
 }
 

@@ -66,6 +66,8 @@ my $sequenceID;
 
 my $ftpServor = "ftp.ncbi.nlm.nih.gov";
 
+my $enaFtpServor = "ftp.sra.ebi.ac.uk";
+
 my $fldSep; # folder seperation change by OS 
 
 my @availableKingdoms = (
@@ -86,6 +88,8 @@ my $mainFolder; # folder where the assembly are place
 
 my $assemblyTaxid = ""; # taxid for assembly
 
+my $sraID; # SRA  sequence ID
+
 
 
 if (@ARGV<1) {
@@ -103,7 +107,7 @@ if ($ARGV[0] eq "-version" || $ARGV[0] eq "-v") {
 	exit 0;	
 }
 
-# requirements
+#requirements
 for (my $i=0; $i<=$#ARGV; $i++) {
     if ($ARGV[$i]=~/-kingdom/i or $ARGV[$i]=~/-k/i) {
 		$kingdom = $ARGV[$i+1];
@@ -139,9 +143,12 @@ for (my $i=0; $i<=$#ARGV; $i++) {
 	elsif ($ARGV[$i]=~/-taxid/i) {
 		$assemblyTaxid = $ARGV[$i+1];
 	}
+	elsif ($ARGV[$i]=~/-fastq/i) {
+		$sraID = $ARGV[$i+1];
+	}
 }
 
-# define folcer separator and OS
+#define folcer separator and OS
 if ($^O =~ /linux/) { 
 	$fldSep = "/";
 	$actualOS = "linux";
@@ -181,12 +188,21 @@ if (grep(/^$kingdom$/i, @availableKingdoms)) {
 
 
 if ($sequenceID) { 
-	my @sequenceIDList = split(/,/, $sequenceID);
+	my @sequenceIDList = split /,/, $sequenceID;
 	
 	foreach my $enaID (@sequenceIDList) {
 		sequence_ena($enaID);
 	}
 }
+
+if ($sraID) {
+	my @sraIDList = split /,/, $sraID;
+	
+	foreach my $sra (@sraIDList) {
+		download_ena_fastq($enaFtpServor, $sra);
+	}	
+}
+
 
 
 my ($end_year,$end_month,$end_day, $end_hour,$end_min,$end_sec) = Today_and_Now();
@@ -268,7 +284,10 @@ sub help_user_advance {
 		perl $0 -k "XXX"  -q 00  -r "XXX" -c chromosome -date  yyyy-mm-dd -get
 		
 		-ena allow to download report and fasta file by ena ID 
-		perl $0.pl -ena XXX
+		perl $0 -ena BN000065
+		
+		-fastq allow to download fastq sequence on ena
+		perl $0 -fastq DRR00001
 		
 HEREDOC
 }
@@ -301,7 +320,7 @@ sub get_assembly_summary_species {
 	# print "before download summary\n";
 	
 	# check assembly summary download
-	if ($getSummary) { 
+	if ($getSummary || ! -e $assemblySummary) { 
 		download_file($ftpServor, $assemblySummary);
 		open(KIN, ">", "kingdom.txt") or die "error open file $!:";
 		print KIN $kingdom;
@@ -319,6 +338,16 @@ sub get_assembly_summary_species {
 			print KIN $kingdom;
 			close(KIN) or die "error close file $!:";
 		}
+	}
+	
+	if ($actualOS eq "linux") {	
+		# initialiaze tar manipulation
+		my $tar = Archive::Tar->new;
+	
+		# download taxdump folder
+		download_file($ftpServor, $lineage_file);
+		$tar->read("new_taxdump.tar.gz");
+		$tar->extract_file("rankedlineage.dmp");
 	}
 	
 	my $oldRep = "";
@@ -341,7 +370,6 @@ sub get_assembly_summary_species {
 	$oldRep = "." . $fldSep . $kingdomRep . $fldSep . $repositoryAssembly;
 
 	if (-d $oldRep) { rmtree($oldRep) }
-	# print "after remove tree\n";
 	
 	my $specificRep; # Repository for required component
 	
@@ -373,17 +401,6 @@ sub get_assembly_summary_species {
 	my %assemblyReportList;
 	
 	if (-e "assembly_summary.txt") {
-		
-		if ($actualOS eq "linux") {
-		
-			# initialiaze tar manipulation
-			my $tar = Archive::Tar->new;
-	
-			# download taxdump folder
-			download_file($ftpServor, $lineage_file);
-			$tar->read("new_taxdump.tar.gz");
-			$tar->extract_file("rankedlineage.dmp");
-		}
 		
 		# Read file
 		open (SUM, "assembly_summary.txt") or die "open assembly_summary.txt : $!";
@@ -1147,6 +1164,7 @@ sub empty_folder {
 	my ($folder, $fldSep) = @_;
 	!<$folder.$fldSep.*>;
 }
+#------------------------------------------------------------------------------
 # compute percentage of nucleotid
 sub nucleotid_percent {
 	my ($fastaFile) = @_;
@@ -1182,6 +1200,7 @@ sub log2 {
   my $n = shift;
   return (log($n) / log(2));
 }
+#------------------------------------------------------------------------------
 # Function allowing to calculate conservation of DRs based on entropy
 sub entropy {
   my($file) = @_; #file given as parameter is an alignment Fasta file
@@ -1302,6 +1321,65 @@ sub obtain_file {
 	my($servor, $link) = @_;
 	if ($link =~ /$servor(.*)/) { return ($1); }
 }
+#------------------------------------------------------------------------------
+# download fastq file from ENA
+sub download_ena_fastq {
+	my ($enaFtpServor, $sraId) = @_;
+	
+	my $fastqDir = "/vol1/fastq/";
+	my $dir1 = substr $sraId, 0, 6;
+	my $dir2 = "000";
+	my $digits = substr $sraId, 3;
+	my $fastqRep =  $sraId . "_folder";
+	
 
+	if (length $digits == 6) {
+		$dir2 = $sraId;
+		$fastqDir .= $dir1 . "/" . $dir2 . "/";
+	}
+	elsif (length $digits  > 6) {
+		my $digitsNumber = 0;
+		my @digitsList = split //, (substr $digits, 6);
+	
+		foreach my $char (@digitsList) {
+			if (length $dir2 >= 1) {
+				$dir2 = substr $dir2, 0, (length $dir2) - 1;
+				$digitsNumber += 1;
+			}
+		}
+		$dir2 .= substr $digits, -$digitsNumber;
+		$fastqDir .= $dir1 . "/" . $dir2 . "/" . $sraId . "/";
+	}
+	
+	my $ftp = Net::FTP->new($enaFtpServor, Debug => 0)
+	or die "Cannot connect to $enaFtpServor";
+	
+	$ftp->login("anonymous", "-anonymous@")
+		or die "Cannot login ", $ftp->message;
+	$ftp->binary;
+	
+	$ftp->cwd($fastqDir) 
+		or die "maybe undefined sequence id, can't go to $fastqDir: ", $ftp->message;
+	
+	my @fastqFiles = $ftp->ls("$sraId*"); 
+	
+	if (!grep(/^$/, @fastqFiles)) {
+		
+		if (-d $fastqRep) { rmtree($fastqRep) }
+		mkdir $fastqRep;
+		
+		foreach my $fastqFile (@fastqFiles) {
+			$ftp->get($fastqFile) or die "get failed ", $ftp->message;
+		
+			my @baseAndExt = split /\./, $fastqFile;
+			my $unzipFastq = $baseAndExt[0] . ".fastq";
+		
+			gunzip $fastqFile => $unzipFastq or die "gunzip failed: $GunzipError\n";
+			move($unzipFastq, $fastqRep) or die "move failed: $!";
+		} 
+		unlink glob "*fastq.gz"  or die "$!: for file *fastq.gz";
+	}
+	$ftp->quit;
+}
 
 
