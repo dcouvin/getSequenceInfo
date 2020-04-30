@@ -1,15 +1,16 @@
-@ECHO OFF
+ECHO OFF
+ECHO Please note that Perl (http://strawberryperl.com/) must be installed on your computer before running the following commands.
 ECHO Installation of needed Perl Modules:
-ECHO Please note that ActivePerl (https://www.activestate.com/products/activeperl/downloads/) must be installed on your Microsoft Windows computer before running the following commands.
-ppm install bioperl
-ppm install Date::Calc
-ppm install Bio::SeqIO
-ppm install LWP::Simple
-ppm install Data::Dumper
-ppm install IO::Uncompress::Gunzip
-ppm install IO::File
-ppm install Getopt::Long
-ppm install Net::FTP
-ppm install Tk
-ECHO Installation has been executed successfully. Please press "Enter" to close this window.
+set PATH=C:\strawberry\c\bin;%PATH%
+cpan -f -i Tk
+cpan -f -i BioPerl
+cpan -f -i Date::Calc
+cpan -f -i Bio::SeqIO
+cpan -f -i LWP::Simple
+cpan -f -i Data::Dumper
+cpan -f -i IO::Uncompress::Gunzip
+cpan -f -i IO::File
+cpan -f -i Getopt::Long
+cpan -f -i Net::FTP
+ECHO Finished... Please press "Enter" to close this window.
 PAUSE
