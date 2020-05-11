@@ -1,7 +1,8 @@
 #!/usr/bin/perl 
 use warnings; 
 use strict; 
-use Tk;   
+use Tk;
+use Tk::ProgressBar; 
 use utf8;
  
 ## Main program
@@ -223,14 +224,24 @@ my $button = $window->Button(
 	-command => \&search, 
 )->place(-x => 280, -y => 460); 
 
+my $progress = $window->ProgressBar( 
+  -from   => 0, 
+  -to     => 100, 
+  -length => 160, 
+  -width  => 25, 
+  -colors => [ 0, 'blue',], 
+)->place(-x => 250, -y => 500); 
+
 
 MainLoop;
 
 
 sub search {
+	my $i = 0;
+	
 	my $command = "perl getSequenceInfo.pl";
 	
-	if (defined $getSummary) {$getSummary = $getSummary eq "yes" ? "-get" : ""; }
+	if (defined $getSummary) { $getSummary = $getSummary eq "yes" ? "-get" : ""; }
 	
 	foreach my $component (keys %componentHash) {
 		if ($checkComponentHash{$component}) {
@@ -240,24 +251,75 @@ sub search {
 	
 	if (defined $enaID) {
 		system("$command -ena $enaID");
+		$i += 100;
+		$progress->value($i); 
+		$window->update();
+		sleep 1; 
 	}
 	elsif (defined $fastqID) {
 		system("$command -fastq $fastqID");
+		$i += 100;
+		$progress->value($i); 
+		$window->update();
+		sleep 1;
 	}
 	else {
-		if (defined $kingdom) { $command .= " -k $kingdom"; }
-		if (defined $species) { $command .= " -s \"$species\""; }
-		if (defined $taxID) { $command .= " -taxid $taxID"; }
-		if (defined $quantity) { $command .= " -q $quantity"; }
-		if (defined $representation) { $command .= " -r \"$representation\""; }
-		if (defined $components) { $command .= " -c $components";}
-		if (defined $date) { $command .= " -date $date"; }
-		if (defined $getSummary) { $command .= " $getSummary"; }
+		my @optionList = (
+			$kingdom,
+			$species,
+			$taxID,
+			$quantity,
+			$representation,
+			$components,
+			$date,
+			$getSummary
+		);
+		
+		my @optionCharList = ( '-k', '-s', '-taxid', '-q', '-r', '-c', 'date', '-get' );
+		
+		my %optionHash = (
+			'-k' => $kingdom,
+			'-s' => $species,
+			'-taxid' => $taxID,
+			'-q' => $quantity,
+			'-r' => $representation,
+			'-c' => $components,
+			'date' => $date,
+			'-get' => $getSummary 
+		);
+		
+		foreach my $option (@optionCharList) {
+			if (defined  $getSummary) {
+				$command .= " $getSummary";
+			} elsif (defined  $optionHash{$option}) {
+				$command .= " $option \"$optionHash{$option}\"";
+			}
+			$i += 10;
+			$progress->value($i); 
+			$window->update();
+			sleep 1;
+		}
+		# if (defined $kingdom) { $command .= " -k $kingdom"; };
+		# if (defined $species) { $command .= " -s \"$species\""; }
+		# if (defined $taxID) { $command .= " -taxid $taxID"; }
+		# if (defined $quantity) { $command .= " -q $quantity"; }
+		# if (defined $representation) { $command .= " -r \"$representation\""; }
+		# if (defined $components) { $command .= " -c $components";}
+		# if (defined $date) { $command .= " -date $date"; }
+		# if (defined $getSummary) { $command .= " $getSummary"; }
+
 		print "$command\n";
 		system("$command");
-		
+		$i += 10;
+		$progress->value($i); 
+		$window->update();
+		sleep 1;
 		$getSummary = undef;
 		$components = undef;
+		$i += 10;
+		$progress->value($i); 
+		$window->update();
+		sleep 1;
 	}
 }
 
