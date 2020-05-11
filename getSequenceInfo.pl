@@ -263,16 +263,19 @@ sub help_user_advance {
 		perl $0 -k "bacteria" -s"XXX" -r "XXX" -date  yyyy-mm-dd -get 
 		
 		-s specific species must be combin with -k option
-		perl $0 -k "bacteria"  -s "Helicobacter pylori" -r "XXX" -date  yyyy-mm-dd -get
+		perl $0 -k "bacteria"  -s "Helicobacter pylori" -get
 		
 		-taxid specific taxid must be combin with -k option
-		perl $0 -k "bacteria"  -taxid 9,24 -r "XXX" -get
+		perl $0 -k "bacteria"  -taxid 9,24  -get
 		
 		-date  sequences are search from this date
-		perl $0 -k "XXX"  -s "XXX" -r "XXX" -date  2019-06-01 -get
+		perl $0 -k "bacteria"  -s "Helicobacter pylori"  -date  2019-06-01 -get
 		
 		-r allow to display sequences by a specific assembly level
-		perl $0 -k "XXX"  -s "XXX" -r "Complete Genome" -date yyyy-mm-dd -get
+		perl $0 -k "bacteria"  -s "Helicobacter pylori" -r "Complete Genome" -get
+		
+		-o allow to rename the main folder project
+		perl $0 -k bacteria -s "Helicobacter pylori"  -r "Complete Genome" -o folder_name -date 2019-06-01 -get
 		
 		-r example Complete Genome, Chromosome, Scaffold, Contig 
 		

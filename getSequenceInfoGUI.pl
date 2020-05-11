@@ -275,7 +275,7 @@ sub search {
 			$getSummary
 		);
 		
-		my @optionCharList = ( '-k', '-s', '-taxid', '-q', '-r', '-c', 'date', '-get' );
+		my @optionCharList = ( '-k', '-s', '-taxid', '-q', '-r', '-c', '-o', '-date', '-get' );
 		
 		my %optionHash = (
 			'-k' => $kingdom,
@@ -284,7 +284,8 @@ sub search {
 			'-q' => $quantity,
 			'-r' => $representation,
 			'-c' => $components,
-			'date' => $date,
+			'-o' => $output,
+			'-date' => $date,
 			'-get' => $getSummary 
 		);
 		
@@ -299,21 +300,9 @@ sub search {
 			$window->update();
 			sleep 1;
 		}
-		# if (defined $kingdom) { $command .= " -k $kingdom"; };
-		# if (defined $species) { $command .= " -s \"$species\""; }
-		# if (defined $taxID) { $command .= " -taxid $taxID"; }
-		# if (defined $quantity) { $command .= " -q $quantity"; }
-		# if (defined $representation) { $command .= " -r \"$representation\""; }
-		# if (defined $components) { $command .= " -c $components";}
-		# if (defined $date) { $command .= " -date $date"; }
-		# if (defined $getSummary) { $command .= " $getSummary"; }
-
 		print "$command\n";
 		system("$command");
-		$i += 10;
-		$progress->value($i); 
-		$window->update();
-		sleep 1;
+
 		$getSummary = undef;
 		$components = undef;
 		$i += 10;
