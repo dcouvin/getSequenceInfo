@@ -52,7 +52,7 @@ my $kingdom = ""; # kingdom of organism
 
 my $releaseDate = "0000-00-00"; # sequence are download from this release date
 
-my $components; # components of the assembly
+my $components = "plasmid,chromosome,scaffold,contig"; # components of the assembly
 
 my $species = ""; # species name
 
@@ -350,8 +350,7 @@ sub get_assembly_summary_species {
 		$tar->extract_file("rankedlineage.dmp");
 	}
 	
-	my $oldRep = "";
-	
+	my $oldAssemblyRep;
 	my $kingdomRep;
 
 	if (defined $mainFolder) {
@@ -362,41 +361,34 @@ sub get_assembly_summary_species {
 	}
 	mkdir $kingdomRep unless -d $kingdomRep;
 	
-	# Repository for Assembly
+	# Repository for request
 	my $repositoryAssembly = "assembly_repository_".$species."_".$assemblyTaxid."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
-
 	mkdir $repositoryAssembly unless -d $repositoryAssembly;
 	
-	$oldRep = "." . $fldSep . $kingdomRep . $fldSep . $repositoryAssembly;
-
-	if (-d $oldRep) { rmtree($oldRep) }
+	$oldAssemblyRep = "." . $fldSep . $kingdomRep . $fldSep . $repositoryAssembly;
+	if (-d $oldAssemblyRep) { rmtree($oldAssemblyRep) }
 	
-	my $specificRep; # Repository for required component
+	#  Repository for fna file
+	my $repositoryFNA = "fna_repository_".$start_year."_".$start_month."_".$start_day;
+	mkdir $repositoryFNA unless -e $repositoryFNA;
 	
-	my $plasmidsRep; # Repository for plasmids
+	# Repository for genbank file
+	my $repositoryGenbank = "genbank_repository_".$start_year."_".$start_month."_".$start_day;
+	mkdir $repositoryGenbank unless -e $repositoryGenbank;
 	
-	my $chromosomesRep; # Repository for chromosomes
+	# Reposotiry for report file
+	my $repositoryReport = "report_repository_".$start_year."_".$start_month."_".$start_day;
+	mkdir $repositoryReport  unless -e $repositoryReport ;
 	
-	my $scaffoldsRep; # Repository for scaffolds
+	# Repositories for required components
+	my %componentsRepHash;
 	
-	my $contigsRep; # Repository for contigs
-	
-	if ($components) {
-		$specificRep = $components."_".$species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
+	for my $component (split /,/, $components) {
+		my $specificRep = $component."_".$species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
 		mkdir $specificRep unless -d $specificRep;
-	} else {
-		$plasmidsRep = "plasmids_". $species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
-		mkdir $plasmidsRep unless -d $plasmidsRep;
+		$componentsRepHash{$component} = $specificRep;
+	}
 	
-		$chromosomesRep = "chromosomes_" . $species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
-		mkdir $chromosomesRep unless -d $chromosomesRep;
-		
-		$scaffoldsRep = "scaffolds_" . $species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
-		mkdir $scaffoldsRep unless -d $scaffoldsRep;
-		
-		$contigsRep = "contigs_" . $species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
-		mkdir $contigsRep unless -d $contigsRep;
-	}	
 	
 	my %assemblyReportList;
 	
@@ -427,8 +419,6 @@ sub get_assembly_summary_species {
 				}
 				
 				if (($tab[$indexInfo] =~ $regex) or ($kingdom ne "" && $searchPattern eq "")) { 
-				
-				
 					my @gcfInfo = split(/\//, $tab[19]);  
 					my $gcfName = pop(@gcfInfo);
 					my $realDate = $tab[14];
@@ -453,14 +443,14 @@ sub get_assembly_summary_species {
 						my $ucpFasta = $gcfName."_genomic.fna";
 						if (-e $fileFasta) {
 							gunzip $fileFasta => $ucpFasta or die "gunzip failed: $GunzipError\n";
-							move($ucpFasta, $repositoryAssembly) or die "move failed: $!";
+							move($ucpFasta, $repositoryFNA) or die "move failed: $!";
 						}
 				
 						# download genome report
 						my $fileReport =  $gcfName."_assembly_report.txt";
 						if (-e $fileReport) {
 							my $fileInformations = $gcfName."_informations.xls";
-							move($fileReport, $repositoryAssembly) or die "move failed: $!";
+							move($fileReport, $repositoryReport) or die "move failed: $!";
 						}
 						
 						# download genbank files
@@ -468,7 +458,7 @@ sub get_assembly_summary_species {
 						my $ucpGenbank = $gcfName."_genomic.gbff";
 						if (-e $fileGenbank) {
 							gunzip $fileGenbank => $ucpGenbank or die "gunzip failed: $GunzipError\n";
-							move($ucpGenbank, $repositoryAssembly) or die "move failed: $!";
+							move($ucpGenbank, $repositoryGenbank) or die "move failed: $!";
 						}
 				
 						# association report and fasta
@@ -495,62 +485,38 @@ sub get_assembly_summary_species {
 			
 			if ($actualOS eq "linux") { unlink glob "*.dmp *.gz"  or die "for file *.dmp *.gz $!:"; }
 			
-			my $emptyFolder = empty_folder($kingdomRep, $fldSep);
-			if ($emptyFolder == 1) { rmdir $kingdomRep or die "fail remove directory $!:"; }
-			rmdir $repositoryAssembly or die "fail remove directory $!:"; 
+			if (empty_folder($kingdomRep)) { rmdir $kingdomRep or die "fail remove directory $!:"; }
+			rmdir $repositoryAssembly or die "fail remove directory $!:";
+			rmdir $repositoryFNA or die "fail remove directory $!:";
+			rmdir $repositoryGenbank or die "fail remove directory $!:"; 
+			rmdir $repositoryReport or die "fail remove directory $!:"; 
 			
-			if ($components) {							
-				rmdir $specificRep or die "fail remove directory $!:"; 
-			} 
-			else {
-				rmdir $plasmidsRep or die "fail remove directory $!:";
-				rmdir $chromosomesRep or die "fail remove directory $!:";
-				rmdir $scaffoldsRep or die "fail remove directory $!:"; 
-				rmdir $contigsRep or die "fail remove directory $!:";
+			for my  $componentRep (values %componentsRepHash) {
+				rmdir $componentRep or die "fail remove directory $!:"; 
 			}
-		}
+			
+		} 
 		else {
 			# write summary files 
+			my %componentsSumHash;
 			my @keysList = keys %assemblyReportList;
 			my $summary = "summary.xls";
 			my $htmlSummary = "summary.html";
-			my $specificSummary;
-			my $plasmidsSummary;
-			my $chromosomesSummary;
-			my $scaffoldsSummary;
-			my $contigsSummary;
-			my @listComponents;
 			
-			if ($components) { 
-				$specificSummary =  $components . "_summary.xls"; 
-				push @listComponents, $components;
-			} 
-			else {
-				$plasmidsSummary = "plasmids_summary.xls";
-				$chromosomesSummary = "chromosomes_summary.xls";
-				$scaffoldsSummary = "scaffolds_summary.xls";
-				$contigsSummary = "contigs_summary.xls";
-				
-				push @listComponents, "plasmid";
-				push @listComponents, "chromosome";
-				push @listComponents, "scaffold";
-				push @listComponents, "contig";
+			for my $component (split /,/, $components) {
+				my $specificSummary =  $component. "_summary.xls"; 
+				$componentsSumHash{$component} = $specificSummary;
 			}
-			
-			my $fileReport = ".".$fldSep. $repositoryAssembly . $fldSep . $keysList[0]; 
-			
-			my @summary_list = ($plasmidsSummary, $chromosomesSummary, $scaffoldsSummary, $contigsSummary);
-			
+		
+			my $fileReport = "." . $fldSep. $repositoryReport . $fldSep . $keysList[0];
 			my @header = ();
 			
 			open(FILE, $fileReport) or die "error open file : $!";
 			while(<FILE>) {
 				chomp;
-				
-				$_ =~ s/^#*//;
-				
 				if($_ =~ /:/){
-					my @ligne = split(':', $_);
+					$_ =~ s/^#*//;
+					my @ligne = split /:/, $_;
 					push(@header, $ligne[0]);
 				}
 			}
@@ -561,101 +527,80 @@ sub get_assembly_summary_species {
 				print HEAD uc($_) . "\t";
 			}
 			
-			print HEAD "PUBMED\tGC_PERCENT\tENTROPY\tSPECIES\tGENUS\tFAMILY\tORDER\tCLASS\t". 
-									"PHYLUM\tKINGDOM\tCOUNTRY\tHOST\tISOLATION_SOURCE\tA_PERCENT\t".
-										"T_PERCENT\tG_PERCENT\tC_PERCENT\n";
+			print HEAD "PUBMED\tNUCLE SCORE\tSPECIES\tGENUS\tFAMILY\tORDER\tCLASS\t"; 
+			print HEAD "PHYLUM\tKINGDOM\tCOUNTRY\tHOST\tISOLATION SOURCE\tA PERCENT\t";
+			print HEAD "T PERCENT\tG PERCENT\tC PERCENT\tN PERCENT\tGC PERCENT\t";
+			print HEAD "ATGC RATIO\tLENGTH\tSHAPE\n";
 			close(HEAD) or die "error close file : $!";
 			
-			if ($components) {
-				open(SUM, ">>", $specificSummary) or die "error open file : $!";
-				print SUM "ID\tASSEMBLY\tDESCRIPTION\tLENGTH\tSTATUS\tLEVEL\t" . 
-							"GC_PERCENT\tA_PERCENT\tT_PERCENT\tG_PERCENT\tC_PERCENT\n";	
-				close(SUM) or die "error close file : $!";	
-			} else {
-				for my $sum(@summary_list) {
-					open(SUM, ">>", $sum) or die "error open file : $!";
-					print SUM "ID\tASSEMBLY\tDESCRIPTION\tLENGTH\tSTATUS\tLEVEL\t" . 
-									"GC_PERCENT\tA_PERCENT\tT_PERCENT\tG_PERCENT\tC_PERCENT\n";	
-					close(SUM) or die "error close file : $!"; 
-				}
-			}	
-			
+	
+			foreach my $componentSummary (values %componentsSumHash) {
+				open(SUM, ">>", $componentSummary) or die "error open file : $!";
+				print SUM "ID\tASSEMBLY\tDESCRIPTION\tLENGTH\tSTATUS\tLEVEL\t";
+				print SUM "GC PERCENT\tA PERCENT\tT PERCENT\tG PERCENT\tC PERCENT\n";	
+				close(SUM) or die "error close file : $!";
+			}
+		 
+		 
 			for my $file (@keysList) {
-				my $file1 = $repositoryAssembly . $fldSep . $file;
-				my @fastaGenbank = split(",", $assemblyReportList{$file});
+				my $reportFile =  $repositoryReport . $fldSep . $file;
+				my @fastaGenbank = split /,/, $assemblyReportList{$file};
 				my $extFasta = $fastaGenbank[0];
 				my $extGenbank = $fastaGenbank[1];
-				my $file2 = $repositoryAssembly . $fldSep . $extFasta;
-				my $file3 = $repositoryAssembly . $fldSep . $extGenbank;
+				my $fnaFile = $repositoryFNA . $fldSep . $extFasta;
+				my $genbankFile = $repositoryGenbank . $fldSep . $extGenbank;
 				
-				write_assembly($file1, $file2, $file3, $summary, $repositoryAssembly,
-				$chromosomesSummary, $plasmidsSummary, $scaffoldsSummary,
-				$contigsSummary, $specificSummary, $components, $kingdom,  $actualOS, @header);
+				write_assembly($reportFile, $fnaFile, $genbankFile, $summary, $repositoryAssembly,\%componentsSumHash, $kingdom,  $actualOS, \@header);
 			}
 			
 			write_html_summary($summary);
 			
-			my @listComponentFasta = create_component_sequence_file($fldSep, $repositoryAssembly, @listComponents);
+			my @listComponentFasta = create_component_sequence_file($fldSep, $repositoryAssembly, (keys %componentsSumHash));
 			
-			if ($components) {
-				foreach my $componentFasta (@listComponentFasta) {
-					move($componentFasta, $specificRep) or die "move failed: $!"; 
+			foreach my $componentFasta (@listComponentFasta) {
+				if ($componentFasta =~ /plasmid/) { 
+					move($componentFasta, $componentsRepHash{'plasmid'}) or die "move failed: $!"; 
+				}
+				elsif ($componentFasta =~ /chromosome/) {
+					move($componentFasta, $componentsRepHash{'chromosome'}) or die "move failed: $!";
+				}
+				elsif ($componentFasta =~ /scaffold/) {
+					move($componentFasta, $componentsRepHash{'scaffold'}) or die "move failed: $!";
+				}
+				elsif ($componentFasta =~ /contig/) {
+					move($componentFasta, $componentsRepHash{'contig'}) or die "move failed: $!";
 				}
 			}
-			else {
-				foreach my $componentFasta (@listComponentFasta) {
-					if ($componentFasta =~ /plasmid/) { 
-						move($componentFasta, $plasmidsRep) or die "move failed: $!"; 
-					}
-					elsif ($componentFasta =~ /chromosome/) {
-						move($componentFasta, $chromosomesRep) or die "move failed: $!";
-					}
-					elsif ($componentFasta =~ /scaffold/) {
-						move($componentFasta, $scaffoldsRep) or die "move failed: $!";
-					}
-					elsif ($componentFasta =~ /contig/) {
-						move($componentFasta, $contigsRep) or die "move failed: $!";
-					}
-				}
-			}
-			
 			
 			move($summary, $repositoryAssembly) or die "move failed: $!";
 			move($htmlSummary, $repositoryAssembly) or die "move failed: $!";
+			move($repositoryFNA, $repositoryAssembly . $fldSep . $repositoryFNA) or die "move failed: $!";
+			move($repositoryGenbank, $repositoryAssembly . $fldSep . $repositoryGenbank) or die "move failed: $!";
+			move($repositoryReport  , $repositoryAssembly . $fldSep . $repositoryReport) or die "move failed: $!";
 			
-			if ($components) {
-				move($specificSummary, $specificRep) or die "move failed: $!";
-				move($specificRep, $repositoryAssembly . $fldSep . $specificRep) or die "move failed: $!";
+			for my $component (keys %componentsSumHash) {
+				move($componentsSumHash{$component}, $componentsRepHash{$component}) or die "move failed: $!";
+				move($componentsRepHash{$component}, $repositoryAssembly . $fldSep . $componentsRepHash{$component}) or die "move failed: $!"
 			}
-			else {
-				move($plasmidsSummary, $plasmidsRep) or die "move failed: $!";
-				move($chromosomesSummary, $chromosomesRep) or die "move failed: $!";
-				move($scaffoldsSummary, $scaffoldsRep) or die "move failed: $!";
-				move($contigsSummary, $contigsRep) or die "move failed: $!";
-				move($plasmidsRep, $repositoryAssembly . $fldSep . $plasmidsRep) or die "move failed: $!";
-				move($chromosomesRep, $repositoryAssembly . $fldSep . $chromosomesRep) or die "move failed: $!";
-				move($scaffoldsRep, $repositoryAssembly . $fldSep . $scaffoldsRep) or die "move failed: $!";
-				move($contigsRep, $repositoryAssembly . $fldSep . $contigsRep) or die "move failed: $!";
-			}
-			move( $repositoryAssembly, $kingdomRep . $fldSep . $repositoryAssembly) or die "move failed: $!";
+			move($repositoryAssembly, $kingdomRep . $fldSep . $repositoryAssembly) or die "move failed: $!";
 			
 			if ($actualOS eq "linux") { unlink glob "*.dmp"  or die "for file *.dmp $!:"; }
 			unlink glob "*.gz  *.dmp sequence.txt"  or die "$!: for file *.gz sequence.txt";
 		}
 	} 
 }
-# write general assembly file
+#write general assembly file
 sub write_assembly {
-	my ($assemblyReport, $genomicFile, $genbankFile, $summary, $repositoryAssembly,
-		    $chromosomesSummary, $plasmidsSummary, $scaffoldsSummary, 
-				$contigsSummary, $specificSummary, $components, $kingdom, $actualOS, @header) = @_;
-				
+	my ($reportFile, $fnaFile, $genbankFile, $summary, $repositoryAssembly,
+	$componentsSumHashRef, $kingdom,  $actualOS, $headerRef) = @_;
+	
+	my %componentsSumHash = %{$componentsSumHashRef};
+	my @header = @{$headerRef};
 	my %hashInformations = ();
 	my $seq = "";
 	my $genomeName = "";
 	my $country = "na";
 	my $GCpercent = -1;
-	my $entropyLevel = "na";
 	my $taxId = "na";
 	my $assemblyLine;
 	my $pubmedId = "na";
@@ -667,9 +612,11 @@ sub write_assembly {
 	my $order = "na";
 	my $class = "na";
 	my $phylum = "na";
+	my $shape = "na";
+	my $geneNumber = "na";
 	
-	open(FIC, "<", $assemblyReport) or die "error open file $!:";
-	while (<FIC>) {
+	open(REP, "<", $reportFile) or die "error open file $!:";
+	while (<REP>) {
 		chomp;
 		$_ =~ s/^#*//;
 		if ($_ =~ /:/) {
@@ -681,11 +628,11 @@ sub write_assembly {
 		}
 		if ($_  =~ /assembled-molecule/) { $assemblyLine = $_; }
 	}
-	close(FIC) or die "close file error $!:";
+	close(REP) or die "error close file $!:";
 	
 	my @header_report = keys %hashInformations;
 	
-	open(FILE_SUMMARY, ">>", $summary) or die "error open file $!:";
+	open(SUM, ">>", $summary) or die "error open file $!:";
 	foreach my $k(@header) {
 		if (grep $_ eq $k, @header_report) {
 			my $information = $hashInformations{$k};
@@ -693,26 +640,25 @@ sub write_assembly {
 			if ($k =~ /Assembly name/) { $genomeName = $information; }
 			
 			if (($information =~ /^\s*$/) || ($information eq "")) {
-				print FILE_SUMMARY "na\t";
+				print SUM "na\t";
 			} else { 
-				print FILE_SUMMARY $information . "\t";
+				print SUM $information . "\t";
 			}
 		} else {
-			print FILE_SUMMARY "na\t";
+			print SUM "na\t";
 		}
 	}
+	close(SUM) or die "error close file $!:";
 	
-	open(FIC2, "<", $genomicFile) or die "Could not open $!:";
-	while (<FIC2>) {
+	open(FNA, "<", $fnaFile) or die "Could not open $!:";
+	while (<FNA>) {
 		chomp;
 		if ($_ !~ /^>/) { $seq .= $_; }
 	}
-	close(FIC2)  or die "Close file error $!:";
+	close(FNA)  or die "error close file :$!";
 	
 	if ($hashInformations{' Taxid'} !~ /\s+/) { $taxId = $hashInformations{' Taxid'} };
 
-	$GCpercent = gc_percent($seq);
-	
 	if ($actualOS eq "linux") {
 		($species, $genus, $family, $order, $class, $phylum) =  get_taxonomic_rank($taxId, "rankedlineage.dmp");
 	}
@@ -720,37 +666,47 @@ sub write_assembly {
 		($species, $genus, $family, $order, $class, $phylum) = get_taxonomic_rank_genbank($genbankFile);
 	}
 	
-	my ($a_percent, $t_percent, $g_percent, $c_percent) = nucleotid_percent($genomicFile);
+	$GCpercent = gc_percent($seq);
+	my ($ade, $thy, $gua, $cyt, $n, $length) = number_nuc_length_seq($fnaFile);
+	my ($aPercent, $tPercent, $gPercent, $cPercent, $nPercent) = nucleotid_percent($ade, $thy, $gua, $cyt, $n, $length);
+	my $atgcRatio =	 atgc_ratio($ade, $thy, $gua, $cyt);
 	
-	open(FIC3, "<", $genbankFile) or die "Could not open $!:";
-	while(<FIC3>) {
+	my @percentList = ($aPercent, $tPercent, $gPercent, $cPercent, $nPercent);
+	
+	my $variance = shift_data_variance(@percentList);
+	my $nucleScore = nucle_score($variance, $GCpercent, $atgcRatio, $length);
+	
+	open(GBFF, "<", $genbankFile) or die "Error open file $!:";
+	while(<GBFF>) {
 		chomp;
 		if ($_ =~ /\/country="(.*)"/) { $country = trim($1); }
 		if ($_ =~ /PUBMED(.*)/) {  $pubmedId = trim($1); }
 		if ($_ =~ /\/host="(.*)"/) {  $host = trim($1); }		
-		if ($_ =~ /\/isolation_source="(.*)"/) {  $isoSource = trim($1); }		
+		if ($_ =~ /\/isolation_source="(.*)"/) {  $isoSource = trim($1); }
+		if ($_ =~ /\(Genes \(total\)\s+::(.*)/) { $geneNumber = trim($1); }
+		if ($_ =~ /LOCUS.*\s+([a-z]{1,})\s+[a-z]{1,}\s+[0-9]{2,}-[a-z]{1,}-[0-9]{4,}$/i) { $shape = trim($1); }
 	}
-	close(FIC3) or die "Close file error $!:";	
+	close(GBFF) or die "error close file $!:";
+
 	
-	print FILE_SUMMARY $pubmedId . "\t" . $GCpercent . "\t" . $entropyLevel . "\t" . $species . "\t" . $genus . "\t" . $family ."\t" . 
-		$order . "\t" . $class . "\t" . $phylum . "\t" . $kingdom . "\t" . $country . "\t" . $host . "\t" . $isoSource  . "\t" .
-			$a_percent . "\t" . $t_percent . "\t" . $g_percent . "\t" . $c_percent  ."\n" ; 
-									
-	close(FILE_SUMMARY) or die "close file error $!:";
+	open(SUM, ">>", $summary) or die "error open file $!:";
+	print SUM $pubmedId . "\t" . $nucleScore . "\t" . $species . "\t" . $genus . "\t" . $family ."\t" ; 
+	print SUM $order . "\t" . $class . "\t" . $phylum . "\t" . $kingdom . "\t" . $country . "\t" . $host . "\t"; 
+	print SUM $isoSource  . "\t" . $aPercent . "\t" . $tPercent . "\t" . $gPercent . "\t" . $cPercent  ."\t" ;
+	print SUM $nPercent . "\t" . $GCpercent ."\t". $atgcRatio ."\t". $length . "\t". $shape."\n"; 
+	close(SUM) or die "error close file: $!";
 	
-	write_assembly_component($genomicFile, $genomeName, $chromosomesSummary,
-	$plasmidsSummary, $scaffoldsSummary, $contigsSummary, $specificSummary, $components);
+	write_assembly_component($fnaFile, $genomeName, \%componentsSumHash);
 }
 #------------------------------------------------------------------------------
 # get assembly component
 sub write_assembly_component {
-	my($multi_fasta, $assembly_name, $chromosomes_summary, $plasmids_summary,
-			$scaffolds_summary, $contigs_summary, $specific_summary, $components) = @_;
-			
+	my($fnaFile, $genomeName, $componentsSumHashRef) = @_;
+	
+	my %componentsSumHash = %{$componentsSumHashRef};
 	my $status = "na";
 	my $level = "na";
 	my $gcpercent;
-	my $info;
 	my $tmp_fasta_file = "sequence.txt";
 	my @desc = ();
 	
@@ -759,7 +715,7 @@ sub write_assembly_component {
 	#my @tabNcounts = ();
 
 	# extract sequence details
-	my $seqIO = Bio::SeqIO->new(-format=>'Fasta', -file=>$multi_fasta);
+	my $seqIO = Bio::SeqIO->new(-format=>'Fasta', -file=>$fnaFile);
 	
 	while ($seq = $seqIO->next_seq()) {
 		my $seqID = $seq->id; # ID of sequence
@@ -767,51 +723,28 @@ sub write_assembly_component {
 		my $globalSeq = $seq->seq;
 		my $seqLength = $seq->length();
 		
-		open(TSEQ, ">", $tmp_fasta_file) or die("Could not open $!");
+		open(TSEQ, ">", $tmp_fasta_file) or die "Error open file: $!";
 		print TSEQ $globalSeq;
 		close(TSEQ);
 		
-		my($a_percent, $t_percent, $g_percent, $c_percent) = nucleotid_percent($tmp_fasta_file);
+		my ($ade, $thy, $gua, $cyt, $n, $length) = number_nuc_length_seq($tmp_fasta_file);
+		
+		my ($aPercent, $tPercent, $gPercent, $cPercent, $nPercent) = nucleotid_percent($ade, $thy, $gua, $cyt, $n, $length);
+		
 		$gcpercent = gc_percent($globalSeq);
 		
-		@desc = split(',', $seqDesc);
+		@desc = split /,/, $seqDesc;
 		
 		if ($desc[1]) { $level = $desc[1]; }
 		
-		if ($components) {
-			if ($desc[0] =~ /$components/) {
-				$status = $components;
-				$info = $seqID . "\t" . $assembly_name ."\t" . $seqDesc . "\t" . $seqLength . "\t" . $status . "\t" . $level ."\t"
-							. $gcpercent."\t". $a_percent ."\t". $t_percent ."\t". $g_percent ."\t". $c_percent . "\n";
-				add_to_file($specific_summary, $info);
+		foreach my $component (keys %componentsSumHash) {
+			if ($desc[0] =~ /$component/) {
+				$status = $component;
+				my $info = $seqID . "\t" . $genomeName ."\t" . $seqDesc . "\t" . $seqLength . "\t" . $status . "\t" . $level ."\t";
+				$info.= $gcpercent."\t". $aPercent ."\t". $tPercent ."\t". $gPercent ."\t". $cPercent . "\n";
+				add_to_file($componentsSumHash{$component}, $info);
 			}
-		}	
-		else {
-			if ($desc[0] =~ /chromosome/) {
-				$status = "chromosome";
-				$info = $seqID . "\t" . $assembly_name ."\t" . $seqDesc . "\t" . $seqLength . "\t" . $status . "\t" . $level ."\t"
-							. $gcpercent."\t". $a_percent ."\t". $t_percent ."\t". $g_percent ."\t". $c_percent . "\n";
-				add_to_file($chromosomes_summary, $info);
-			}
-			elsif ($desc[0] =~ /plasmid/) {
-				$status = "plasmid";
-				$info = $seqID . "\t" . $assembly_name ."\t" . $seqDesc . "\t" . $seqLength . "\t" . $status . "\t" . $level ."\t"
-							. $gcpercent."\t". $a_percent ."\t". $t_percent ."\t". $g_percent ."\t". $c_percent . "\n";
-				add_to_file($plasmids_summary, $info);				
-			} 
-			elsif ($desc[0] =~ /scaffold/) {
-				$status = "scaffold";
-				$info = $seqID . "\t" . $assembly_name ."\t" . $seqDesc . "\t" . $seqLength . "\t" . $status . "\t" . $level ."\t"
-							. $gcpercent."\t". $a_percent ."\t". $t_percent ."\t". $g_percent ."\t". $c_percent . "\n";
-				add_to_file($scaffolds_summary, $info);					
-			} 
-			elsif ($desc[0] =~ /contig/) {
-				$status = "contig";
-				$info = $seqID . "\t" . $assembly_name ."\t" . $seqDesc . "\t" . $seqLength . "\t" . $status . "\t" . $level ."\t"
-							. $gcpercent."\t". $a_percent ."\t". $t_percent ."\t". $g_percent ."\t". $c_percent . "\n";
-				add_to_file($contigs_summary, $info);	
-			}
-		}	
+		}
 	}
 }
 #------------------------------------------------------------------------------
@@ -900,7 +833,7 @@ sub get_fasta_and_report_sequence_ena_other {
 	$url = "https://www.ebi.ac.uk/ena/data/view/$sequenceID&display=text&header=true";
 	$output = get($url);
 	$report_file = $sequenceID . "_report.txt";
-	open(FILE, ">>", $report_file) or die("could not open $!");
+	open(FILE, ">>", $report_file) or die "could not open: $!";
 	print FILE $output;
 	close(FILE) or die "could not close $!";
 	
@@ -1161,121 +1094,96 @@ sub trim_array {
 #------------------------------------------------------------------------------
 # check if folder is empty
 sub empty_folder {
-	my ($folder, $fldSep) = @_;
-	!<$folder.$fldSep.*>;
+	my $dirname = shift;
+    opendir(my $dholder, $dirname) or die "error not a directory";
+	my $isEmpty = scalar(grep { $_ ne "." && $_ ne ".." } readdir($dholder));
+	if ($isEmpty == 0) { return $isEmpty; }
+}
+#------------------------------------------------------------------------------
+# number nucleotid and length
+sub number_nuc_length_seq {
+	my ($fastaFile) = @_;
+	my $ade = 0;
+	my $thy = 0;
+	my $gua = 0;
+	my $cyt = 0;
+	my $n = 0;
+	my $length = 0;
+	
+	open (FASTA, "<", $fastaFile) or die "Could not open $!";
+	while (<FASTA>) {
+		chomp;
+		if ($_ !~ />/) {
+			my @seq = split //, $_;
+			
+			for my $nuc (@seq) {
+				$length +=1 ;
+				if ($nuc =~ /a/i) {$ade+=1;}
+				elsif ($nuc =~ /t/i) {$thy+=1;}
+				elsif ($nuc =~ /g/i) {$gua+=1;}
+				elsif ($nuc =~ /c/i) {$cyt+=1;}
+				elsif ($nuc =~ /n/i) {$n+=1;}
+			}
+		}
+	}
+	close(FASTA) or die "Error close file :$!";
+	return ($ade, $thy, $gua, $cyt, $n, $length);
+	
 }
 #------------------------------------------------------------------------------
 # compute percentage of nucleotid
 sub nucleotid_percent {
-	my ($fastaFile) = @_;
-	my $A = 0;
-	my $T = 0;
-	my $G = 0;
-	my $C = 0;
-	my $length = 0;
+	my($ade, $thy, $gua, $cyt, $n, $length) = @_;
 	
-	open (FASTA, "<", $fastaFile) or die ("Could not open $!");
-	while (<FASTA>) {
-		chomp;
-		my $line = $_;
-		if ($line !~ />/) {
-			my @seq = split(//, uc($line));
-			for my $NC (@seq) {
-				$length++;
-				if ($NC eq "A") {$A++;}
-				if ($NC eq "T") {$T++;}
-				if ($NC eq "G") {$G++;}
-				if ($NC eq "C") {$C++;}
-			}
-		}
+	my $adePercent = $ade / $length * 100;
+	my $thyPercent = $thy / $length * 100;
+	my $guaPercent = $gua / $length * 100;
+	my $cytPercent = $cyt / $length * 100;
+	my $nPercent = $n / $length * 100;
+	
+	return ($adePercent, $thyPercent, $guaPercent, $cytPercent, $nPercent);
+ 
+}
+#------------------------------------------------------------------------------
+# compute ATGC ratio 
+sub atgc_ratio {
+	my ($ade, $thy, $gua, $cyt) = @_;
+	
+	return (($ade + $thy) / ($gua + $cyt));
+	
+}
+#------------------------------------------------------------------------------
+# variance
+sub shift_data_variance {
+	my (@data) = @_;
+	
+	if ($#data + 1 < 2) { return 0.0; }
+
+	my $K = $data[0];
+	my ($n, $Ex, $Ex2) = 0.0;
+	
+	for my $x (@data) {
+		$n = $n + 1;
+		$Ex += $x - $K;
+		$Ex2 += ($x - $K) * ($x - $K);
 	}
-	my $A_PERCENT = ($A/$length) * 100;
-	my $T_PERCENT = ($T/$length) * 100;
-	my $G_PERCENT = ($G/$length) * 100;
-	my $C_PERCENT = ($C/$length) * 100;
-	return ($A_PERCENT, $T_PERCENT, $G_PERCENT, $C_PERCENT)
+	
+	my $variance = ($Ex2 - ($Ex * $Ex) / $n) / ($n); ## ($n - 1)
+	
+	return $variance;
+
+}
+#------------------------------------------------------------------------------
+# nucle score
+sub nucle_score {
+	my ($variance, $gcPercent, $atgcRatio, $length) = @_;
+	
+	return (($variance * $gcPercent * $atgcRatio) / $length);
 }
 #------------------------------------------------------------------------------
 sub log2 {
   my $n = shift;
   return (log($n) / log(2));
-}
-#------------------------------------------------------------------------------
-# Function allowing to calculate conservation of DRs based on entropy
-sub entropy {
-  my($file) = @_; #file given as parameter is an alignment Fasta file
-  
-  open F, $file or die ("an error occurred while opening $file\n");
-  my @lines = <F>;
-  close F;
-
-  my (%words, $total, @text);
-
-  my $seqLength=0;
-  my @tableRows=();
-  my @tableCols=();
-
-  my @table=();
-
-  my $countLine = 0;
-
-  foreach my $line (@lines) {
-	chomp $line;
-
-	my @words = split /[^a-zA-Z]+/, $line;
-	#Replace to treat Fasta sequence
-	#Retrieve each letter by column
-	if ($line !~ />/)
-	{
-		$seqLength=length($line);
-		#print "Line is : $line\n";
-		for (my $i = 0; $i < $seqLength; $i++) {
-			my $value = substr($line, $i, 1);
-			$table[$countLine][$i] = $value;
-
-			#Instanciate $tableCols with values from columns
-			$tableCols[$i][$countLine] = $value;
-		}		
-		$countLine++;
-	}
-  }
-
-  # entropy
-  my $sumEntropy =0;
-
-  for (my $j = 0; $j < $seqLength; $j++) {	
-	my $sizeTable = @{$tableCols[$j]};
-	my %element =();
-
-	foreach my $elem (@{$tableCols[$j]}) {
-		if ($elem eq "-") { 
-		  $element{$elem} = 0; 
-		} 
-             	else{
-		  $element{$elem}++;
-		}
-	}
-	my $entropy;
-	foreach my $word (@{$tableCols[$j]}) {
-		if ($word ne "-"){
-		  my $prob = $element{$word} / $sizeTable;
-		  $entropy += log2($prob); 
-		}
-	}
-
-	$entropy *= -1;
-	$entropy = $entropy/$sizeTable;
-
-	#Calculate Sum of entropies and divide by $seqLength ... Adding (1- $entropy) to get percentage-like results
-	$sumEntropy = $sumEntropy + (1 - $entropy); 
-  }
-
-  #PRINT FINAL Entropy (Sum + "Mean")
-  my $finalResult = ($sumEntropy / $seqLength) * 100; 
-  
-  if($finalResult<0){ $finalResult = 0; }
-  
-  return $finalResult;
 }
 #------------------------------------------------------------------------------
 # compute GC pourcent
