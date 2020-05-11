@@ -18,6 +18,15 @@ my $enaID;
 my $output;
 my $taxID;
 my $fastqID;
+my $chromosome = "chromosome";
+my $plasmid = "plasmid";
+my $contig = "contig";
+my $scaffold = "scaffold";
+my $checkChromosome;
+my $checkPlasmid;
+my $checkContig;
+my $checkScaffold;
+my $components;
 
 # window creation 
 my $window = new MainWindow( 
@@ -90,6 +99,7 @@ my $summaryCheckButton = $window->Checkbutton(
 	-text => 'yes',
 	-onvalue => 'yes',
 	-offvalue => 'no',
+	-relief => 'raised',
 	-variable => \$getSummary,
 	-background => 'white'
 )->place(-x => 80, -y => 380);
@@ -132,18 +142,37 @@ my $componenentsLabel = $window->Label(
 	-background => 'white', 
 )->place(-x => 420, -y => 145); 
 
-my @componentList = qw/chromosome plasmid contig scaffold/; 
+# my @componentList = qw/chromosome plasmid contig scaffold/; 
 
+my %componentHash = (
+	chromosome => $chromosome,
+	plasmid => $plasmid,
+	contig => $contig,
+	scaffold => $scaffold,
+);
+
+my %checkComponentHash = (
+	chromosome => $checkChromosome,
+	plasmid => $checkPlasmid,
+	contig => $checkContig,
+	scaffold => $checkScaffold,
+);
+
+my @keysList = keys %checkComponentHash;
+
+my $index = 0;
 my $componentPos = 165;
 
-foreach my $subComponent (@componentList) {
-	my $componentRadio = $window->Radiobutton(
-		-text => $subComponent,
-		-value => $subComponent,
-		-variable => \$component,
-		-width => 20,
-		-indicatoron => 0,
-	)->place(-x => 420, -y => $componentPos);
+foreach my $component (values %componentHash) {
+	my $summaryCheckButton = $window->Checkbutton(
+	-text => $component,
+	-onvalue => 1,
+	-offvalue => 0,
+	-relief => 'raised',
+	-variable => \$checkComponentHash{$keysList[$index]},
+	-background => 'white'
+	)->place(-x => 420, -y => $componentPos); 
+	$index++;
 	$componentPos += 22;
 }
 
@@ -203,6 +232,12 @@ sub search {
 	
 	if (defined $getSummary) {$getSummary = $getSummary eq "yes" ? "-get" : ""; }
 	
+	foreach my $component (keys %componentHash) {
+		if ($checkComponentHash{$component}) {
+			$components.= $componentHash{$component} . ",";
+		}
+	}
+	
 	if (defined $enaID) {
 		system("$command -ena $enaID");
 	}
@@ -215,11 +250,14 @@ sub search {
 		if (defined $taxID) { $command .= " -taxid $taxID"; }
 		if (defined $quantity) { $command .= " -q $quantity"; }
 		if (defined $representation) { $command .= " -r \"$representation\""; }
-		if (defined $component) { $command .= " -c $component";}
+		if (defined $components) { $command .= " -c $components";}
 		if (defined $date) { $command .= " -date $date"; }
 		if (defined $getSummary) { $command .= " $getSummary"; }
 		print "$command\n";
 		system("$command");
+		
+		$getSummary = undef;
+		$components = undef;
 	}
 }
 
