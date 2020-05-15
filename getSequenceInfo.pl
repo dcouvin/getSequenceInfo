@@ -527,20 +527,20 @@ sub get_assembly_summary_species {
 			
 			open(HEAD, ">", $summary) or die " error open file : $!";
 			foreach(@header) {
-				print HEAD uc($_) . "\t";
+				print HEAD $_ . "\t";
 			}
 			
-			print HEAD "PUBMED\tNUCLE SCORE\tSPECIES\tGENUS\tFAMILY\tORDER\tCLASS\t"; 
-			print HEAD "PHYLUM\tKINGDOM\tCOUNTRY\tHOST\tISOLATION SOURCE\tA PERCENT\t";
-			print HEAD "T PERCENT\tG PERCENT\tC PERCENT\tN PERCENT\tGC PERCENT\t";
-			print HEAD "ATGC RATIO\tLENGTH\tSHAPE\n";
+			print HEAD "Pubmed\tNucle score\tSpecies\tGenus\tFamily\tOrder\tClass\t"; 
+			print HEAD "Phylum\tKingdom\tCountry\tHost\tIsolation source\tA percent\t";
+			print HEAD "T percent\tG percent\tC percent\tN percent\tGC percent\t";
+			print HEAD "ATGC ratio\tLength\tShape\n";
 			close(HEAD) or die "error close file : $!";
 			
 	
 			foreach my $componentSummary (values %componentsSumHash) {
 				open(SUM, ">>", $componentSummary) or die "error open file : $!";
-				print SUM "ID\tASSEMBLY\tDESCRIPTION\tLENGTH\tSTATUS\tLEVEL\t";
-				print SUM "GC PERCENT\tA PERCENT\tT PERCENT\tG PERCENT\tC PERCENT\n";	
+				print SUM "Id\tAssembly\tDescription\tLength\tStatus\tLevel\t";
+				print SUM "GC percent\tA percent\tT percent\tG percent\tC percent\n";	
 				close(SUM) or die "error close file : $!";
 			}
 		 
@@ -793,7 +793,7 @@ sub get_fasta_and_report_sequence_ena_assembly {
 		close(FILE) or die("could not close $!");
 	}
 	
-	unlink "fichier.txt" or die " $!: error delete file fichier.txt";
+	unlink "fichier.txt" or die "error delete file :$!";
 	
 	return ($fasta_file, $report_file);
 }
@@ -960,7 +960,7 @@ sub add_table_content {
 		
 		print HTML "   <tr>\n";
 		for my $header (@assemblyHeader[$cellIndex..$cellIndex + $nbOfCell - 1]) {
-			if ($header =~ /PUBMED/ && $hashHeaderInfo{$header} ne "na") {
+			if ($header =~ /PUBMED/i && $hashHeaderInfo{$header} ne "na") {
 				print HTML "   <td><a href=https://www.ncbi.nlm.nih.gov/pubmed/?term=".
 				"$hashHeaderInfo{$header} target=\"_blank\">$hashHeaderInfo{trim($header)}</a></td>";
 			}

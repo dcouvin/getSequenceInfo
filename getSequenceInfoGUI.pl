@@ -250,6 +250,7 @@ sub search {
 	}
 	
 	if (defined $enaID) {
+		print "$command -ena $enaID\n";
 		system("$command -ena $enaID");
 		$i += 100;
 		$progress->value($i); 
@@ -257,6 +258,7 @@ sub search {
 		sleep 1; 
 	}
 	elsif (defined $fastqID) {
+		print "$command -fastq $fastqID\n";
 		system("$command -fastq $fastqID");
 		$i += 100;
 		$progress->value($i); 
@@ -272,10 +274,9 @@ sub search {
 			$representation,
 			$components,
 			$date,
-			$getSummary
 		);
 		
-		my @optionCharList = ( '-k', '-s', '-taxid', '-q', '-r', '-c', '-o', '-date', '-get' );
+		my @optionCharList = ( '-k', '-s', '-taxid', '-q', '-r', '-c', '-o', '-date');
 		
 		my %optionHash = (
 			'-k' => $kingdom,
@@ -285,24 +286,26 @@ sub search {
 			'-r' => $representation,
 			'-c' => $components,
 			'-o' => $output,
-			'-date' => $date,
-			'-get' => $getSummary 
+			'-date' => $date
 		);
 		
 		foreach my $option (@optionCharList) {
-			if (defined  $getSummary) {
-				$command .= " $getSummary";
-			} elsif (defined  $optionHash{$option}) {
-				$command .= " $option \"$optionHash{$option}\"";
-			}
+			if (defined  $optionHash{$option}) { $command .= " $option \"$optionHash{$option}\""; }
 			$i += 10;
 			$progress->value($i); 
 			$window->update();
 			sleep 1;
 		}
+	
+		if (defined  $getSummary) { $command .= " $getSummary"; }
+		$i += 10;
+		$progress->value($i); 
+		$window->update();
+		sleep 1;
+		
 		print "$command\n";
 		system("$command");
-
+		
 		$getSummary = undef;
 		$components = undef;
 		$i += 10;
