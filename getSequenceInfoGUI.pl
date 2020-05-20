@@ -1,11 +1,12 @@
 #!/usr/bin/perl 
+
+
 use warnings; 
 use strict; 
 use Tk;
 use Tk::ProgressBar; 
 use utf8;
  
-## Main program
 
 # variable declaration
 my $kingdom;
@@ -19,138 +20,167 @@ my $enaID;
 my $output;
 my $taxID;
 my $fastqID;
-my $chromosome = "chromosome";
-my $plasmid = "plasmid";
-my $contig = "contig";
-my $scaffold = "scaffold";
+my $directoryNcbi;
 my $checkChromosome;
 my $checkPlasmid;
 my $checkContig;
 my $checkScaffold;
+my $specificComponent;
 my $components;
 
 # window creation 
-my $window = new MainWindow( 
+my $mw = new MainWindow( 
 	-title      => 'getSequenceInfo', 
 	-background => 'white', 
 ); 
+
+# Taille de ma fenêtre 
+$mw->minsize(600,620); 
   
-# Taille minimale de ma fenêtre 
-$window->minsize( 650, 600 ); 
-  
+
+# a Frame you'll never see
+my $frame1 = $mw->Frame(-background => 'white');
+my $frame2 = $mw->Frame(-background => 'white');
+my $frame3 = $mw->Frame(-background => 'white'); 
+my $frame4 = $mw->Frame(-background => 'white');
+my $frame5 = $frame3->Frame(-background => 'white', -borderwidth => 5, -relief => 'groove'); 
+
 my $homeMessage = "Thanks for using getSequenceInfo tool\n\n"; 
-  
-# Affichage d'un texte 
-my $homeLabel = $window->Label( 
+
+#Affichage d'un texte 
+$frame1 = $mw->Label( 
   -text       => $homeMessage, 
   -background => 'white', 
-)->pack(); 
+)->pack();
+
+
+
+
+## left frame side
+#database where tto download sequences 
+$frame2->Label(
+	-text => 'directory where to download sequences : ',
+	-background => 'white', 
+)->pack();
+
+
+my @directoryList = qw/refseq genbank/;
+
+foreach my $directory (@directoryList) {
+	$frame2->Radiobutton(
+		-text => $directory,
+		-value => $directory,
+		-variable => \$directoryNcbi,
+		-indicatoron => 0,
+		-width => 20,
+	)->pack();
+}
+
 
 #  label and listbox for kingdom
-my $kingdomLabel = $window->Label(
+$frame2->Label(
 	-text => 'select the name of the kingdom : ',
 	-background => 'white',
-)->place(-x => 80, -y => 30);
+)->pack();
 
 
 my @kingdomList = qw/archaea bacteria fungi invertebrate plant protozoa 
 									vertebrate_mammalian vertebrate_other viral/;
 
-my $kingdomPos = 50;
 
 foreach my $subKingdom(@kingdomList) {
-	my $kingdomRadio = $window->Radiobutton(
+	 $frame2->Radiobutton(
 		-text => $subKingdom,
 		-value => $subKingdom,
 		-variable => \$kingdom,
-		-width => 20,
 		-indicatoron => 0,
-	)->place(-x => 80, -y => $kingdomPos);
-	$kingdomPos += 22;
+		-width => 20,
+	)->pack();
 }
 
-	
 #label and entry for species
-my $speciesLabel = $window->Label( 
+$frame2->Label( 
 	-text       => 'name of the species to search : ', 
 	-background => 'white', 
-)->place(-x => 80, -y => 270); 
+)->pack(); 
 
-my $speciesEntry = $window->Entry(
+$frame2 ->Entry(
 	-textvariable => \$species,
-)->place(-x => 80, -y => 290); 
+)->pack();
 
 #label and entry for date
-my $dateLabel = $window->Label( 
+$frame2->Label( 
 	-text       => 'assembly from this date (yyyy-mm-dd) : ', 
 	-background => 'white', 
-)->place(-x => 80, -y => 315); 
+)->pack(); 
 
-my $dateEntry = $window->Entry(
+$frame2->Entry(
 	-textvariable => \$date,
-)->place(-x => 80, -y => 335); 
+)->pack(); 
 
 #label and listbox for summary
-my $summaryLabel = $window->Label( 
+$frame2->Label( 
 	-text       => 'obtain last updates from the servor : ', 
 	-background => 'white',
-)->place(-x => 80, -y => 360); 
+)->pack(); 
 
-my $summaryCheckButton = $window->Checkbutton(
+$frame2->Checkbutton(
 	-text => 'yes',
 	-onvalue => 'yes',
 	-offvalue => 'no',
 	-relief => 'raised',
 	-variable => \$getSummary,
-	-background => 'white'
-)->place(-x => 80, -y => 380);
+)->pack();
 
 #label and entry for taxid
-my $taxidLabel = $window->Label( 
+$frame2->Label( 
 	-text       => 'taxid of the species to search : ', 
 	-background => 'white',
-)->place(-x => 80, -y => 400);
+)->pack();
 
-my $taxidEntry = $window->Entry(
+$frame2->Entry(
 	-textvariable => \$taxID,
-)->place(-x => 80, -y => 420);  
+)->pack();  
 
-# label and entry for representation
-my $representationLabel = $window->Label( 
+
+# label and entry to rename the output
+$frame2->Label( 
+	-text       => 'name of the folder : ', 
+	-background => 'white', 
+)->pack(); 
+
+$frame2->Entry(
+	-textvariable => \$output,
+)->pack(); 
+
+
+# #right frame side
+#label and entry for representation
+$frame3->Label( 
 	-text       => 'assembly level   : ', 
 	-background => 'white',
-)->place(-x => 420, -y => 30); 
+)->pack(); 
 
 
 my @representationList = ("Complete Genome", "Chromsome", "Scaffold", "Contig"); 
 
-my $representationPos = 50;
 
 foreach my $subRepresentation (@representationList) {
-	my $representationRadio = $window->Radiobutton(
+	$frame3->Radiobutton(
 		-text => $subRepresentation,
 		-value => $subRepresentation,
 		-variable => \$representation,
 		-width => 20,
 		-indicatoron => 0,
-	)->place(-x => 420, -y => $representationPos);
-	$representationPos += 22;
+	)->pack();
 }
 
 # label and entry for componenents
-my $componenentsLabel = $window->Label( 
+$frame3->Label( 
 	-text       => 'component : ',
 	-background => 'white', 
-)->place(-x => 420, -y => 145); 
+)->pack(); 
 
-# my @componentList = qw/chromosome plasmid contig scaffold/; 
-
-my %componentHash = (
-	chromosome => $chromosome,
-	plasmid => $plasmid,
-	contig => $contig,
-	scaffold => $scaffold,
-);
 
 my %checkComponentHash = (
 	chromosome => $checkChromosome,
@@ -159,78 +189,83 @@ my %checkComponentHash = (
 	scaffold => $checkScaffold,
 );
 
-my @keysList = keys %checkComponentHash;
 
-my $index = 0;
-my $componentPos = 165;
-
-foreach my $component (values %componentHash) {
-	my $summaryCheckButton = $window->Checkbutton(
+foreach my $component (keys %checkComponentHash) {
+	$frame3->Checkbutton(
 	-text => $component,
 	-onvalue => 1,
 	-offvalue => 0,
 	-relief => 'raised',
-	-variable => \$checkComponentHash{$keysList[$index]},
-	-background => 'white'
-	)->place(-x => 420, -y => $componentPos); 
-	$index++;
-	$componentPos += 22;
+	-width => 20,
+	-variable => \$checkComponentHash{$component},
+	)->pack(); 
 }
 
+$frame3->Entry( 
+	-textvariable => \$specificComponent,
+)->pack();  
+
 # label and entry for quantity
-my $quantityLabel = $window->Label( 
+$frame3->Label( 
 	-text       => 'quantity of assembly : ', 
 	-background => 'white', 
-)->place(-x => 420, -y => 255); 
+)->pack(); 
 
-my $quantityEntry = $window->Entry( 
+$frame3->Entry( 
 	-textvariable => \$quantity,
-)->place(-x => 420, -y => 275);  
+)->pack();  
 
 # label and entry for ena
-my $enaLabel = $window->Label( 
+$frame5->Label( 
+	-text       => 'ENA', 
+	-background => 'white', 
+)->pack(); 
+
+# label and entry for ena
+$frame5->Label( 
 	-text       => 'download sequences (ena ID)  : ', 
 	-background => 'white', 
-)->place(-x => 420, -y => 295); 
+)->pack(); 
 
-my $enaEntry = $window->Entry( 
+$frame5->Entry( 
 	-textvariable => \$enaID,
-)->place(-x => 420, -y => 315); 
-
-# label and entry to rename the output
-my $outputLabel = $window->Label( 
-	-text       => 'name of the folder : ', 
-	-background => 'white', 
-)->place(-x => 420, -y => 340); 
-
-my $outputEntry = $window->Entry(
-	-textvariable => \$output,
-)->place(-x => 420, -y => 360); 
+)->pack(); 
 
 
 # label and entry to rename the output
-my $fastqLabel = $window->Label( 
+$frame5->Label( 
 	-text       => 'run accession id for fastq : ', 
 	-background => 'white', 
-)->place(-x => 420, -y => 380); 
+)->pack(); 
 
-my $fastqEntry = $window->Entry(
+$frame5->Entry(
 	-textvariable => \$fastqID,
-)->place(-x => 420, -y => 400);  
+)->pack(); 
 
-# Affichage d'un bouton pour fermer la fenêtre 
-my $button = $window->Button( 
+
+
+
+## bottom frame
+# start search button
+$frame4->Button( 
 	-text    => 'start search', 
 	-command => \&search, 
-)->place(-x => 280, -y => 460); 
+)->pack();
 
-my $progress = $window->ProgressBar( 
+#progress bar
+my $progress = $frame4->ProgressBar( 
   -from   => 0, 
   -to     => 100, 
-  -length => 160, 
-  -width  => 25, 
+  -width  => 25,
+  -length => 150,
   -colors => [ 0, 'blue',], 
-)->place(-x => 250, -y => 500); 
+)->pack(); 
+
+$frame1->pack(-side => 'top', -fill => 'both');
+$frame2->pack(-side => 'left', -fill => 'both');
+$frame3->pack(-side => 'right', -fill => 'both');
+$frame5->pack();
+$frame4->pack(-side => 'bottom', -fill => 'both');
 
 
 MainLoop;
@@ -243,18 +278,20 @@ sub search {
 	
 	if (defined $getSummary) { $getSummary = $getSummary eq "yes" ? "-get" : ""; }
 	
-	foreach my $component (keys %componentHash) {
+	foreach my $component (keys %checkComponentHash) {
 		if ($checkComponentHash{$component}) {
-			$components.= $componentHash{$component} . ",";
+			$components.= $component . ",";
 		}
 	}
+	
+	if ($specificComponent) {$components.= $specificComponent;}
 	
 	if (defined $enaID) {
 		print "$command -ena $enaID\n";
 		system("$command -ena $enaID");
 		$i += 100;
 		$progress->value($i); 
-		$window->update();
+		$mw->update();
 		sleep 1; 
 	}
 	elsif (defined $fastqID) {
@@ -262,21 +299,11 @@ sub search {
 		system("$command -fastq $fastqID");
 		$i += 100;
 		$progress->value($i); 
-		$window->update();
+		$mw->update();
 		sleep 1;
 	}
 	else {
-		my @optionList = (
-			$kingdom,
-			$species,
-			$taxID,
-			$quantity,
-			$representation,
-			$components,
-			$date,
-		);
-		
-		my @optionCharList = ( '-k', '-s', '-taxid', '-q', '-r', '-c', '-o', '-date');
+		my @optionCharList = ( '-k', '-s', '-taxid', '-q', '-r', '-c', '-o', '-dir', '-date');
 		
 		my %optionHash = (
 			'-k' => $kingdom,
@@ -286,6 +313,7 @@ sub search {
 			'-r' => $representation,
 			'-c' => $components,
 			'-o' => $output,
+			'-dir' => $directoryNcbi,
 			'-date' => $date
 		);
 		
@@ -293,27 +321,22 @@ sub search {
 			if (defined  $optionHash{$option}) { $command .= " $option \"$optionHash{$option}\""; }
 			$i += 10;
 			$progress->value($i); 
-			$window->update();
+			$mw->update();
 			sleep 1;
 		}
 	
 		if (defined  $getSummary) { $command .= " $getSummary"; }
-		$i += 10;
-		$progress->value($i); 
-		$window->update();
-		sleep 1;
 		
 		print "$command\n";
 		system("$command");
 		
-		$getSummary = undef;
-		$components = undef;
+		undef $getSummary;
+		undef $components;
+		undef $enaID;
+		
 		$i += 10;
 		$progress->value($i); 
-		$window->update();
+		$mw->update();
 		sleep 1;
 	}
 }
-
-
-

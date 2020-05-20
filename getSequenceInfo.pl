@@ -46,7 +46,7 @@ print "##################################################################\n\n";
 # parameters
 my $version = "1.0";
 
-my $directory = "refseq";
+my $directory = "genbank";
 	
 my $kingdom = ""; # kingdom of organism
 
@@ -203,8 +203,6 @@ if ($sraID) {
 	}	
 }
 
-
-
 my ($end_year,$end_month,$end_day, $end_hour,$end_min,$end_sec) = Today_and_Now();
 
 my ($D_y,$D_m,$D_d, $Dh,$Dm,$Ds) =
@@ -310,17 +308,9 @@ sub get_assembly_summary_species {
 	
 	# lineage folder
 	my $lineage_file = "/pub/taxonomy/new_taxdump/new_taxdump.tar.gz";
-
-	# new assembly_summary information after modification
-  	my $newAssemblySummary = "assembly_summary_$kingdom". $releaseDate.".tsv";
-
-	# Assembly semicolon kingdom file
-	my $newAssemblySemicolon = "assembly_semicolon_$kingdom".$releaseDate.".txt";
 	
 	# allow to check old summary download
 	my $oldKingdom = ""; 
-	
-	# print "before download summary\n";
 	
 	# check assembly summary download
 	if ($getSummary || ! -e $assemblySummary) { 
@@ -328,9 +318,7 @@ sub get_assembly_summary_species {
 		open(KIN, ">", "kingdom.txt") or die "error open file $!:";
 		print KIN $kingdom;
 		close(KIN) or die "error close file $!:";
-	}
-	
-	elsif ($kingdom ne "" && $species eq  "") {
+	} elsif ($kingdom ne "" && $species eq  "") {
 		open(KIN, "<", "kingdom.txt") or die "error open file $!:";
 		$oldKingdom = trim(<KIN>);
 		close(KIN) or die "error close file $!:";
@@ -362,6 +350,8 @@ sub get_assembly_summary_species {
 	else { 
 		$kingdomRep = $kingdom."_".$start_year."_".$start_month."_".$start_day; 
 	}
+	
+	
 	mkdir $kingdomRep unless -d $kingdomRep;
 	
 	# Repository for request
@@ -372,15 +362,15 @@ sub get_assembly_summary_species {
 	if (-d $oldAssemblyRep) { rmtree($oldAssemblyRep) }
 	
 	#  Repository for fna file
-	my $repositoryFNA = "fna_repository_".$start_year."_".$start_month."_".$start_day;
+	my $repositoryFNA = "Assembly";
 	mkdir $repositoryFNA unless -e $repositoryFNA;
 	
 	# Repository for genbank file
-	my $repositoryGenbank = "genbank_repository_".$start_year."_".$start_month."_".$start_day;
+	my $repositoryGenbank = "GenBank";
 	mkdir $repositoryGenbank unless -e $repositoryGenbank;
 	
 	# Reposotiry for report file
-	my $repositoryReport = "report_repository_".$start_year."_".$start_month."_".$start_day;
+	my $repositoryReport = "Report";
 	mkdir $repositoryReport  unless -e $repositoryReport ;
 	
 	# Repositories for required components
@@ -392,7 +382,6 @@ sub get_assembly_summary_species {
 		$componentsRepHash{$component} = $specificRep;
 	}
 	
-	
 	my %assemblyReportList;
 	
 	if (-e "assembly_summary.txt") {
@@ -402,9 +391,9 @@ sub get_assembly_summary_species {
 		while(<SUM>) {
 		
 			chomp;
-			my @tab = split('\t', $_);	
+			my @tab = split /\t/, $_;	
 			
-			if ($_ !~  m/^#/ && $tab[11] eq $representation && $tab[13] =~  m/Full/) {	
+			if ($_ !~  m/^#/ && $tab[11] =~ /$representation/i && $tab[13] =~  m/Full/) {	
 				
 				my $indexInfo = 0;
 				my $searchPattern = "";
@@ -483,7 +472,7 @@ sub get_assembly_summary_species {
 		if (!keys %assemblyReportList) {
 			print "##################################################################\n";
 			print "Actual requirements are not found or are invalid for the database\n";
-			print "$species $kingdom $assemblyTaxid\n";
+			print "$species $kingdom $assemblyTaxid $representation\n";
 			print "##################################################################\n\n";
 			
 			if ($actualOS eq "linux") { unlink glob "*.dmp *.gz"  or die "for file *.dmp *.gz $!:"; }
@@ -558,21 +547,11 @@ sub get_assembly_summary_species {
 			
 			write_html_summary($summary);
 			
-			my @listComponentFasta = create_component_sequence_file($fldSep, $repositoryAssembly, (keys %componentsSumHash));
+			my @componentList = keys %componentsSumHash;
+			my %componentFastaHash = create_component_sequence_file($fldSep, $repositoryFNA, \@componentList);
 			
-			foreach my $componentFasta (@listComponentFasta) {
-				if ($componentFasta =~ /plasmid/) { 
-					move($componentFasta, $componentsRepHash{'plasmid'}) or die "move failed: $!"; 
-				}
-				elsif ($componentFasta =~ /chromosome/) {
-					move($componentFasta, $componentsRepHash{'chromosome'}) or die "move failed: $!";
-				}
-				elsif ($componentFasta =~ /scaffold/) {
-					move($componentFasta, $componentsRepHash{'scaffold'}) or die "move failed: $!";
-				}
-				elsif ($componentFasta =~ /contig/) {
-					move($componentFasta, $componentsRepHash{'contig'}) or die "move failed: $!";
-				}
+			foreach my $component (keys %componentFastaHash) { 
+				move($componentFastaHash{$component}, $componentsRepHash{$component}) or die "move failed: $!"; 
 			}
 			
 			move($summary, $repositoryAssembly) or die "move failed: $!";
@@ -1023,15 +1002,16 @@ sub get_taxonomic_rank_genbank {
 #------------------------------------------------------------------------------
 #add all sequences components to file
 sub create_component_sequence_file {
-	my ($fldSep, $repository, @listComponent) = @_;
+	my ($fldSep, $repository, $listComponentRef) = @_;
 	
 	my @listFnaFile;
+	my @listComponent = @{$listComponentRef};
 	
 	opendir(my $dh, $repository) || die "Can't opendir $repository: $!";
 	@listFnaFile = grep{/fna$/} readdir($dh);
 	closedir $dh;
 	
-	my @listComponentFasta;
+	my %componentFastaHash;
 
 	foreach my $component (@listComponent) {
 	
@@ -1074,9 +1054,9 @@ sub create_component_sequence_file {
 				}
 			}
 		}
-		if (-e $componentFasta) { push @listComponentFasta, $componentFasta; }
+		if (-e $componentFasta) { $componentFastaHash{$component} = $componentFasta; }
 	}
-	return @listComponentFasta;
+	return %componentFastaHash;
 }
 # remove back and front spaces
 sub trim {
