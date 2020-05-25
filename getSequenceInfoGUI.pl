@@ -25,7 +25,7 @@ my $checkChromosome;
 my $checkPlasmid;
 my $checkContig;
 my $checkScaffold;
-my $specificComponent;
+my $specificComponent = "keyword";
 my $components;
 
 # window creation 
@@ -35,7 +35,7 @@ my $mw = new MainWindow(
 ); 
 
 # Taille de ma fenêtre 
-$mw->minsize(600,620); 
+# $mw->minsize(600,620); 
   
 
 # a Frame you'll never see
@@ -162,7 +162,7 @@ $frame3->Label(
 )->pack(); 
 
 
-my @representationList = ("Complete Genome", "Chromsome", "Scaffold", "Contig"); 
+my @representationList = ("Complete Genome", "All"); 
 
 
 foreach my $subRepresentation (@representationList) {
@@ -196,7 +196,7 @@ foreach my $component (keys %checkComponentHash) {
 	-onvalue => 1,
 	-offvalue => 0,
 	-relief => 'raised',
-	-width => 20,
+	-width => 17,
 	-variable => \$checkComponentHash{$component},
 	)->pack(); 
 }
@@ -262,9 +262,9 @@ my $progress = $frame4->ProgressBar(
 )->pack(); 
 
 $frame1->pack(-side => 'top', -fill => 'both');
-$frame2->pack(-side => 'left', -fill => 'both');
-$frame3->pack(-side => 'right', -fill => 'both');
-$frame5->pack();
+$frame2->pack(-side => 'left', -fill => 'both', -expand => 1);
+$frame3->pack(-side => 'right', -fill => 'both', -expand => 1);
+$frame5->pack(-expand => 1);
 $frame4->pack(-side => 'bottom', -fill => 'both');
 
 
@@ -284,7 +284,11 @@ sub search {
 		}
 	}
 	
-	if ($specificComponent) {$components.= $specificComponent;}
+	if ($representation && $representation =~ /all/i) {
+		$representation = "Complete Genome,Chromosome,Scaffold,Contig";
+	}
+	
+	if ($specificComponent && $specificComponent !~ /keyword/) {$components.= $specificComponent;}
 	
 	if (defined $enaID) {
 		print "$command -ena $enaID\n";

@@ -52,13 +52,13 @@ my $kingdom = ""; # kingdom of organism
 
 my $releaseDate = "0000-00-00"; # sequence are download from this release date
 
-my $components = "plasmid,chromosome,scaffold,contig"; # components of the assembly
+my $components = "plasmid,chromosome,scaffold,contig";  # components of the assembly
 
 my $species = ""; # species name
 
 my $getSummary; # indicates if a new assembly report is required
 
-my $representation = "Complete Genome"; # assembly level of the genome
+my $assemblyLevel = "Complete Genome,Chromosome,Scaffold,Contig"; # assembly level of the genome
 
 my $quantity; # number of sequences to download
 
@@ -125,8 +125,8 @@ for (my $i=0; $i<=$#ARGV; $i++) {
 	elsif ($ARGV[$i]=~/-species/i or $ARGV[$i]=~/-s/i) {
 		$species = $ARGV[$i+1];
 	}
-	elsif ($ARGV[$i]=~/-representation/i or $ARGV[$i]=~/-r/i) {
-		$representation = $ARGV[$i+1];
+	elsif ($ARGV[$i]=~/-level/i or $ARGV[$i]=~/-l/i) {
+		$assemblyLevel = $ARGV[$i+1];
 	}
 	elsif ($ARGV[$i]=~/-components/i or $ARGV[$i]=~/-c/i) {
 		$components = $ARGV[$i+1];
@@ -164,25 +164,28 @@ print "Working ...\n";
 if ($kingdom eq "viruses") { $kingdom = "viral"; }
 
 if (grep(/^$kingdom$/i, @availableKingdoms)) {
+	
+	my @levelList = split /,/, $assemblyLevel;
+	
 	if ($species ne "") {
 		my @speciesList = split(/,/, $species);
 		
 		foreach my $actualSpecies (@speciesList) {
-			get_assembly_summary_species($quantity, $releaseDate, $directory, $kingdom, $actualSpecies,
-			$representation, $fldSep, $actualOS, $mainFolder, $assemblyTaxid);
+			get_assembly_summary_species($quantity, $releaseDate, $directory, $kingdom,
+			$actualSpecies,\@levelList, $fldSep, $actualOS, $mainFolder, $assemblyTaxid);
 		}
 	}
 	elsif ($assemblyTaxid ne "") {
 		my @taxidList = split(/,/, $assemblyTaxid);
 		
 		foreach my $actualID (@taxidList) {
-			get_assembly_summary_species($quantity, $releaseDate, $directory, $kingdom, $species,
-			$representation, $fldSep, $actualOS, $mainFolder, $actualID);
+			get_assembly_summary_species($quantity, $releaseDate, $directory, $kingdom, 
+			$species,\@levelList, $fldSep, $actualOS, $mainFolder, $actualID);
 		}
 	} 
 	else {
-		get_assembly_summary_species($quantity, $releaseDate, $directory, $kingdom, $species,
-		$representation, $fldSep, $actualOS, $mainFolder, $assemblyTaxid);
+		get_assembly_summary_species($quantity, $releaseDate, $directory, $kingdom, 
+		$species,\@levelList, $fldSep, $actualOS, $mainFolder, $assemblyTaxid);
 	}	
 }
 
@@ -301,7 +304,7 @@ sub program_version {
 }
 #------------------------------------------------------------------------------
 sub get_assembly_summary_species {
-	my ($quantity, $releaseDate, $directory, $kingdom, $species, $representation, $fldSep, $actualOS, $mainFolder, $assemblyTaxid) = @_;
+	my ($quantity, $releaseDate, $directory, $kingdom, $species, $levelList, $fldSep, $actualOS, $mainFolder, $assemblyTaxid) = @_;
 	
 	# assembly_summary.txt file from NCBI FTP site
 	my $assemblySummary = "/genomes/$directory/$kingdom/assembly_summary.txt"; 
@@ -318,6 +321,7 @@ sub get_assembly_summary_species {
 		open(KIN, ">", "kingdom.txt") or die "error open file $!:";
 		print KIN $kingdom;
 		close(KIN) or die "error close file $!:";
+		
 	} elsif ($kingdom ne "" && $species eq  "") {
 		open(KIN, "<", "kingdom.txt") or die "error open file $!:";
 		$oldKingdom = trim(<KIN>);
@@ -383,84 +387,90 @@ sub get_assembly_summary_species {
 	}
 	
 	my %assemblyReportList;
+	my @assemblyRepresentationList = qw/Full Partial/;
+	my @levelList = @{$levelList};
+	my $checkCompleteGenome = grep(/complete genome/i, @levelList);
+	
+	if ($checkCompleteGenome > 0) {@assemblyRepresentationList = qw/Full/;}
 	
 	if (-e "assembly_summary.txt") {
-		
 		# Read file
 		open (SUM, "assembly_summary.txt") or die "open assembly_summary.txt : $!";
 		while(<SUM>) {
-		
 			chomp;
-			my @tab = split /\t/, $_;	
-			
-			if ($_ !~  m/^#/ && $tab[11] =~ /$representation/i && $tab[13] =~  m/Full/) {	
+			if ($_ !~  m/^#/) {
+				my @infoList = split /\t/, $_;
+				my $foundAssemRep = grep (/$infoList[13]/i, @assemblyRepresentationList);
+				my $checkLevel = grep(/$infoList[11]/i, @levelList);
 				
-				my $indexInfo = 0;
-				my $searchPattern = "";
-				my $regex = "";
-				
-				if ($species ne "") {
-					$indexInfo = 7;
-					$searchPattern = $species;
-					$regex = qr/$searchPattern/i;
-				}
-				elsif ($assemblyTaxid ne "") { 
-					$indexInfo = 6; 
-					$searchPattern = $assemblyTaxid;
-					$regex = qr/^$searchPattern$/i;
-				}
-				
-				if (($tab[$indexInfo] =~ $regex) or ($kingdom ne "" && $searchPattern eq "")) { 
-					my @gcfInfo = split(/\//, $tab[19]);  
-					my $gcfName = pop(@gcfInfo);
-					my $realDate = $tab[14];
-					$realDate =~ s/\//-/g;
+				if ($foundAssemRep > 0 && $checkLevel > 0) {
+					my $indexInfo = 0;
+					my $searchPattern = "";
+					my $regex = "";
 					
-					my $genbankFile = $tab[19] . "/" . $gcfName . "_genomic.gbff.gz";
-					my $dnaFile = $tab[19] . "/" . $gcfName . "_genomic.fna.gz";
-					my $assemblyReport = $tab[19] . "/" . $gcfName . "_assembly_report.txt";
-					
-					if ($realDate gt $releaseDate) {
-						
-						$dnaFile = obtain_file($ftpServor, $dnaFile);
-						$genbankFile = obtain_file($ftpServor, $genbankFile);
-						$assemblyReport = obtain_file($ftpServor, $assemblyReport);
-					
-						download_file($ftpServor, $dnaFile);
-						download_file($ftpServor, $genbankFile);
-						download_file($ftpServor, $assemblyReport);
-					
-						# download sequences and check number of "N" characters
-						my $fileFasta = $gcfName."_genomic.fna.gz";
-						my $ucpFasta = $gcfName."_genomic.fna";
-						if (-e $fileFasta) {
-							gunzip $fileFasta => $ucpFasta or die "gunzip failed: $GunzipError\n";
-							move($ucpFasta, $repositoryFNA) or die "move failed: $!";
-						}
-				
-						# download genome report
-						my $fileReport =  $gcfName."_assembly_report.txt";
-						if (-e $fileReport) {
-							my $fileInformations = $gcfName."_informations.xls";
-							move($fileReport, $repositoryReport) or die "move failed: $!";
-						}
-						
-						# download genbank files
-						my $fileGenbank = $gcfName."_genomic.gbff.gz";
-						my $ucpGenbank = $gcfName."_genomic.gbff";
-						if (-e $fileGenbank) {
-							gunzip $fileGenbank => $ucpGenbank or die "gunzip failed: $GunzipError\n";
-							move($ucpGenbank, $repositoryGenbank) or die "move failed: $!";
-						}
-				
-						# association report and fasta
-						my $fileFastaGenbank = $ucpFasta . "," . $ucpGenbank;
-						$assemblyReportList{$fileReport} = $fileFastaGenbank;
-					
-						if ($quantity) { $quantity -= 1; }
-						
+					if ($species !~ //) {
+						$indexInfo = 7;
+						$searchPattern = $species;
+						$regex = qr/$searchPattern/i;
 					}
-				}	
+					elsif ($assemblyTaxid !~ //) { 
+						$indexInfo = 6; 
+						$searchPattern = $assemblyTaxid;
+						$regex = qr/^$searchPattern$/i;
+					}
+					
+					if (($infoList[$indexInfo] =~ $regex) or ($kingdom !~ // && $searchPattern =~ //)) { 
+						my @gcfInfo = split(/\//, $infoList[19]);  
+						my $gcfName = pop(@gcfInfo);
+						my $realDate = $infoList[14];
+						$realDate =~ s/\//-/g;
+						
+						my $genbankFile = $infoList[19] . "/" . $gcfName . "_genomic.gbff.gz";
+						my $dnaFile = $infoList[19] . "/" . $gcfName . "_genomic.fna.gz";
+						my $assemblyReport = $infoList[19] . "/" . $gcfName . "_assembly_report.txt";
+						
+						if ($realDate gt $releaseDate) {
+							
+							$dnaFile = obtain_file($ftpServor, $dnaFile);
+							$genbankFile = obtain_file($ftpServor, $genbankFile);
+							$assemblyReport = obtain_file($ftpServor, $assemblyReport);
+						
+							download_file($ftpServor, $dnaFile);
+							download_file($ftpServor, $genbankFile);
+							download_file($ftpServor, $assemblyReport);
+						
+							# download sequences and check number of "N" characters
+							my $fileFasta = $gcfName."_genomic.fna.gz";
+							my $ucpFasta = $gcfName."_genomic.fna";
+							if (-e $fileFasta) {
+								gunzip $fileFasta => $ucpFasta or die "gunzip failed: $GunzipError\n";
+								move($ucpFasta, $repositoryFNA) or die "move failed: $!";
+							}
+					
+							# download genome report
+							my $fileReport =  $gcfName."_assembly_report.txt";
+							if (-e $fileReport) {
+								my $fileInformations = $gcfName."_informations.xls";
+								move($fileReport, $repositoryReport) or die "move failed: $!";
+							}
+							
+							# download genbank files
+							my $fileGenbank = $gcfName."_genomic.gbff.gz";
+							my $ucpGenbank = $gcfName."_genomic.gbff";
+							if (-e $fileGenbank) {
+								gunzip $fileGenbank => $ucpGenbank or die "gunzip failed: $GunzipError\n";
+								move($ucpGenbank, $repositoryGenbank) or die "move failed: $!";
+							}
+					
+							# association report and fasta
+							my $fileFastaGenbank = $ucpFasta . "," . $ucpGenbank;
+							$assemblyReportList{$fileReport} = $fileFastaGenbank;
+						
+							if ($quantity) { $quantity -= 1; }
+							
+						}
+					}
+				}
 			}
 			if (defined $quantity && $quantity == 0) {
 				$quantity = undef;
@@ -472,7 +482,7 @@ sub get_assembly_summary_species {
 		if (!keys %assemblyReportList) {
 			print "##################################################################\n";
 			print "Actual requirements are not found or are invalid for the database\n";
-			print "$species $kingdom $assemblyTaxid $representation\n";
+			print "$species $kingdom $assemblyTaxid @levelList\n";
 			print "##################################################################\n\n";
 			
 			if ($actualOS eq "linux") { unlink glob "*.dmp *.gz"  or die "for file *.dmp *.gz $!:"; }
