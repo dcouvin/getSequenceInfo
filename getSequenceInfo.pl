@@ -23,27 +23,26 @@ use POSIX qw(floor);
 # Date and time of the current day (Beginning)
 my ($start_year,$start_month,$start_day, $start_hour,$start_min,$start_sec) = Today_and_Now();
 
-print "##################################################################\n";
-print "## Welcome to program: $0!\n";
-print "## Date: $start_year-$start_month-$start_day, $start_hour:$start_min:$start_sec\n";
-print "## version : 1.0\n";
-print "## « Copyright 2019 David Couvin, Moco Vincent »\n";
-print "## licence GPL-3.0-or-later\n";
-print "## This program is free software: you can redistribute it and/or modify\n";
-print "## it under the terms of the GNU General Public License as published by\n";
-print "## the Free Software Foundation, either version 3 of the License, or\n";
-print "##  (at your option) any later version.\n";
-print "##\n";
-print "## This program is distributed in the hope that it will be useful,\n";
-print "## but WITHOUT ANY WARRANTY; without even the implied warranty of\n";
-print "## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n";
-print "## GNU General Public License for more details.\n";
-print "##\n";
-print "## You should have received a copy of the GNU General Public License\n";
-print "## along with this program.  If not, see <https://www.gnu.org/licenses/>. 1\n";
-print "##################################################################\n\n";
 
-# parameters
+##################################################################
+## « Copyright 2019 David Couvin, Moco Vincent »
+## licence GPL-3.0-or-later
+## This program is free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 3 of the License, or
+##  (at your option) any later version.
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+## You should have received a copy of the GNU General Public License
+## along with this program.  If not, see <https://www.gnu.org/licenses/>. 
+##################################################################
+
+
+
+
+### parameters
 my $version = "1.0";
 
 my $directory = "genbank";
@@ -90,6 +89,16 @@ my $assemblyTaxid = ""; # taxid for assembly
 
 my $sraID; # SRA  sequence ID
 
+my $assemblyPrjID; # assembly or prj ID
+
+
+
+print "##################################################################\n";
+print "## Welcome to program: $0!\n";
+print "## version : $version\n";
+print "## Date: $start_year-$start_month-$start_day, $start_hour:$start_min:$start_sec\n";
+print "##################################################################\n\n";
+
 
 
 if (@ARGV<1) {
@@ -107,7 +116,7 @@ if ($ARGV[0] eq "-version" || $ARGV[0] eq "-v") {
 	exit 0;	
 }
 
-#requirements
+##requirements
 for (my $i=0; $i<=$#ARGV; $i++) {
     if ($ARGV[$i]=~/-kingdom/i or $ARGV[$i]=~/-k/i) {
 		$kingdom = $ARGV[$i+1];
@@ -145,6 +154,9 @@ for (my $i=0; $i<=$#ARGV; $i++) {
 	}
 	elsif ($ARGV[$i]=~/-fastq/i) {
 		$sraID = $ARGV[$i+1];
+	}
+	elsif ($ARGV[$i]=~/-assembly_or_project/i) {
+		$assemblyPrjID = $ARGV[$i+1];
 	}
 }
 
@@ -204,6 +216,10 @@ if ($sraID) {
 	foreach my $sra (@sraIDList) {
 		download_ena_fastq($enaFtpServor, $sra);
 	}	
+}
+
+if ($assemblyPrjID) {
+	download_assembly_or_project($assemblyPrjID, $ftpServor, $fldSep, $directory);
 }
 
 my ($end_year,$end_month,$end_day, $end_hour,$end_min,$end_sec) = Today_and_Now();
@@ -348,7 +364,7 @@ sub get_assembly_summary_species {
 	my $oldAssemblyRep;
 	my $kingdomRep;
 
-	if (defined $mainFolder) {
+	if ($mainFolder) {
 		$kingdomRep = $mainFolder; 
 	}
 	else { 
@@ -1282,5 +1298,123 @@ sub download_ena_fastq {
 	}
 	$ftp->quit;
 }
+#------------------------------------------------------------------------------
+# download fastq file from ENA
+sub get_assembly_or_project {
+	my ($file, $sequence, $ftpServor, $fldSep) = @_;
+	
+	my $pattern;
+	my $indexInfo;
+	my %folderHash;
+	
+	#  Repository for fna file
+	my $repositoryFNA = "Assembly";
+	
+	# Repository for genbank file
+	my $repositoryGenbank = "GenBank";
+	
+	# Reposotiry for report file
+	my $repositoryReport = "Report";
+	
+	# global repository
+	my $repositorySequence = $sequence;
 
-
+	
+	if ($sequence =~ /^GC[AF]_(.*)/) {
+		$indexInfo = 0;
+		$pattern = $1;
+	}
+	elsif ($sequence =~ /^PRJ/) {
+		$indexInfo = 1;
+		$pattern = $sequence;
+	}
+	
+	open(SUM, $file) or die "error open file $!:";
+	while(<SUM>) {
+		chomp;
+		if ($_ !~ /^#/) {
+			my @infoList = split /\t/, $_;
+			if ($infoList[$indexInfo] =~ /$pattern/) {
+				my @gcfInfo = split(/\//, $infoList[19]);  
+				my $gcfName = pop(@gcfInfo);
+				
+				
+				my $genbankFile = $infoList[19] . "/" . $gcfName . "_genomic.gbff.gz";
+				my $dnaFile = $infoList[19] . "/" . $gcfName . "_genomic.fna.gz";
+				my $assemblyReport = $infoList[19] . "/" . $gcfName . "_assembly_report.txt";
+				
+				$dnaFile = obtain_file($ftpServor, $dnaFile);
+				$genbankFile = obtain_file($ftpServor, $genbankFile);
+				$assemblyReport = obtain_file($ftpServor, $assemblyReport);
+				
+				download_file($ftpServor, $dnaFile);
+				download_file($ftpServor, $genbankFile);
+				download_file($ftpServor, $assemblyReport);
+				
+				# download sequences and check number of "N" characters
+				my $fileFasta = $gcfName."_genomic.fna.gz";
+				my $ucpFasta = $gcfName."_genomic.fna";
+				if (-e $fileFasta) {
+					gunzip $fileFasta => $ucpFasta or die "gunzip failed: $GunzipError\n";
+					$folderHash{$ucpFasta} = $repositoryFNA;
+				}
+				
+				# download genome report
+				my $fileReport =  $gcfName."_assembly_report.txt";
+				if (-e $fileReport) {
+					$folderHash{$fileReport} = $repositoryReport;
+				}
+				
+				# download genbank files
+				my $fileGenbank = $gcfName."_genomic.gbff.gz";
+				my $ucpGenbank = $gcfName."_genomic.gbff";
+				if (-e $fileGenbank) {
+					gunzip $fileGenbank => $ucpGenbank or die "gunzip failed: $GunzipError\n";
+					$folderHash{$ucpGenbank} = $repositoryGenbank;
+				}
+				
+				
+			}
+		}
+	}
+	close(SUM) or die "error close file $!";	
+	
+	if (keys %folderHash) {
+		if (-e $repositorySequence) {rmtree($repositorySequence);}
+		
+		mkdir $repositorySequence;
+		mkdir $repositoryFNA;
+		mkdir $repositoryGenbank;
+		mkdir $repositoryReport;
+		
+		for my $ucpFile (keys %folderHash) {
+			move($ucpFile, $folderHash{$ucpFile}) or die "error move file $!:";
+		}
+		move($repositoryFNA, $repositorySequence . $fldSep. $repositoryFNA) or die "error move file $!:";
+		move($repositoryGenbank, $repositorySequence . $fldSep. $repositoryGenbank) or die "error move file $!:";
+		move($repositoryReport, $repositorySequence . $fldSep. $repositoryReport) or die "error move file $!:";
+		unlink glob "*.gz"  or die "for file *.gz $!:";
+	} 
+	
+}
+sub download_assembly_or_project {
+	my ($sequenceId, $ftpServor, $fldSep, $directory) = @_;
+	
+	my $assemblySummary;
+	my @sequenceIdList = split /,/, $sequenceId;
+	
+	if ($directory =~ /refseq/) {
+		$assemblySummary = "assembly_summary_refseq.txt";
+	} elsif ($directory =~ /genbank/) {
+		$assemblySummary = "assembly_summary_genbank.txt";
+	}
+	
+	my $assemblySummaryPath = "/genomes/ASSEMBLY_REPORTS/".$assemblySummary; 
+	download_file($ftpServor, $assemblySummaryPath);
+	
+	foreach my $sequence (@sequenceIdList) {
+		get_assembly_or_project($assemblySummary, $sequence, $ftpServor, $fldSep);
+	}
+	
+	
+}

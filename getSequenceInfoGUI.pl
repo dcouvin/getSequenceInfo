@@ -13,7 +13,7 @@ my $kingdom;
 my $species;
 my $date;
 my $getSummary;
-my $representation;
+my $levelAssembly;
 my $component;
 my $quantity;
 my $enaID;
@@ -27,6 +27,7 @@ my $checkContig;
 my $checkScaffold;
 my $specificComponent = "keyword";
 my $components;
+my $assemblyPrjID;
 
 # window creation 
 my $mw = new MainWindow( 
@@ -162,14 +163,14 @@ $frame3->Label(
 )->pack(); 
 
 
-my @representationList = ("Complete Genome", "All"); 
+my @levelList = ("Complete Genome", "All"); 
 
 
-foreach my $subRepresentation (@representationList) {
+foreach my $level (@levelList) {
 	$frame3->Radiobutton(
-		-text => $subRepresentation,
-		-value => $subRepresentation,
-		-variable => \$representation,
+		-text => $level,
+		-value => $level,
+		-variable => \$levelAssembly,
 		-width => 20,
 		-indicatoron => 0,
 	)->pack();
@@ -213,6 +214,16 @@ $frame3->Label(
 
 $frame3->Entry( 
 	-textvariable => \$quantity,
+)->pack();  
+
+# label and entry for quantity
+$frame3->Label( 
+	-text       => 'assembly or project ID : ', 
+	-background => 'white', 
+)->pack(); 
+
+$frame3->Entry( 
+	-textvariable => \$assemblyPrjID,
 )->pack();  
 
 # label and entry for ena
@@ -284,8 +295,8 @@ sub search {
 		}
 	}
 	
-	if ($representation && $representation =~ /all/i) {
-		$representation = "Complete Genome,Chromosome,Scaffold,Contig";
+	if ($levelAssembly && $levelAssembly =~ /all/i) {
+		$levelAssembly = "Complete Genome,Chromosome,Scaffold,Contig";
 	}
 	
 	if ($specificComponent && $specificComponent !~ /keyword/) {$components.= $specificComponent;}
@@ -306,15 +317,23 @@ sub search {
 		$mw->update();
 		sleep 1;
 	}
+	elsif (defined$assemblyPrjID) {
+		print "$command -assembly_or_project $assemblyPrjID\n";
+		system("$command -assembly_or_project $assemblyPrjID");
+		$i += 100;
+		$progress->value($i); 
+		$mw->update();
+		sleep 1;
+	}
 	else {
-		my @optionCharList = ( '-k', '-s', '-taxid', '-q', '-r', '-c', '-o', '-dir', '-date');
+		my @optionCharList = ( '-k', '-s', '-taxid', '-q', '-l', '-c', '-o', '-dir', '-date');
 		
 		my %optionHash = (
 			'-k' => $kingdom,
 			'-s' => $species,
 			'-taxid' => $taxID,
 			'-q' => $quantity,
-			'-r' => $representation,
+			'-l' => $levelAssembly,
 			'-c' => $components,
 			'-o' => $output,
 			'-dir' => $directoryNcbi,
