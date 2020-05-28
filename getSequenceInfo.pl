@@ -1,7 +1,60 @@
 #!/usr/bin/perl
 
+################################################################################
+## "Copyright 2019 Vincent Moco and David Couvin"
+## licence GPL-3.0-or-later
+## This program is free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 3 of the License, or
+##  (at your option) any later version.
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+## You should have received a copy of the GNU General Public License
+## along with this program.  If not, see <https://www.gnu.org/licenses/>. 
+################################################################################
+
 use strict;
 use warnings;
+
+my $version = "1.0.1"; # version
+# Date and time of the current day (Beginning)
+my ($start_year,$start_month,$start_day, $start_hour,$start_min,$start_sec) = Today_and_Now();
+
+print "##################################################################\n";
+print "## ---> Welcome to $0 (version $version)!\n";
+print "## Start Date (yyyy-mm-dd, hh:min:sec): $start_year-$start_month-$start_day, $start_hour:$start_min:$start_sec\n";
+print "##################################################################\n\n";
+
+
+my @modules = qw(
+	BioPerl
+	Archive::Tar
+	Bio::SeqIO
+	Bio::Species
+	Date::Calc
+	File::Copy
+	File::Path
+	Net::FTP
+	IO::Uncompress::Gunzip
+	LWP::Simple
+	POSIX
+	Tk
+	Tk::ProgressBar
+	utf8
+	Shannon::Entropy
+);
+
+foreach my $module (@modules) {
+	if (isModuleInstalled($module)) {
+	  print "$module is.................installed!\n";
+	} else {
+	  print "$module was not installed.\nLet us install it\n";
+	  system("cpan -i -f $module");
+	}
+}
+print "\n";
 
 use Archive::Tar;
 use Bio::SeqIO;
@@ -15,36 +68,13 @@ use LWP::Simple qw(get);
 use POSIX qw(floor);
 
 ##########################################################################################
-##  tool to find genomic informations on NCBI and ENA
-##  version : 1.0
+##  A Perl script tool to get sequence information from GenBank, 
+##  RefSeq or ENA repositories.
+##  
 ##########################################################################################
 
 ### main program
-# Date and time of the current day (Beginning)
-my ($start_year,$start_month,$start_day, $start_hour,$start_min,$start_sec) = Today_and_Now();
-
-
-##################################################################
-## « Copyright 2019 David Couvin, Moco Vincent »
-## licence GPL-3.0-or-later
-## This program is free software: you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation, either version 3 of the License, or
-##  (at your option) any later version.
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-## You should have received a copy of the GNU General Public License
-## along with this program.  If not, see <https://www.gnu.org/licenses/>. 
-##################################################################
-
-
-
-
 ### parameters
-my $version = "1.0";
-
 my $directory = "genbank";
 	
 my $kingdom = ""; # kingdom of organism
@@ -90,16 +120,6 @@ my $assemblyTaxid = ""; # taxid for assembly
 my $sraID; # SRA  sequence ID
 
 my $assemblyPrjID; # assembly or prj ID
-
-
-
-print "##################################################################\n";
-print "## Welcome to program: $0!\n";
-print "## version : $version\n";
-print "## Date: $start_year-$start_month-$start_day, $start_hour:$start_min:$start_sec\n";
-print "##################################################################\n\n";
-
-
 
 if (@ARGV<1) {
 	help_user_simple($0);
@@ -170,7 +190,6 @@ elsif ($^O =~ /MSWin32/) {
 	$actualOS	= "MSWin32";
 }
 
-
 print "Working ...\n"; 
 
 if ($kingdom eq "viruses") { $kingdom = "viral"; }
@@ -228,7 +247,7 @@ my ($D_y,$D_m,$D_d, $Dh,$Dm,$Ds) =
       Delta_YMDHMS($start_year,$start_month,$start_day, $start_hour, $start_min, $start_sec,
                    $end_year, $end_month, $end_day, $end_hour,$end_min,$end_sec);
 
-print "End of process Date: $start_year-$start_month-$start_day, $start_hour:$start_min:$start_sec\n";
+print "End Date: $start_year-$start_month-$start_day, $start_hour:$start_min:$start_sec\n";
 print "Execution time: $Dh:$Dm:$Ds\n";
 
 ### subroutine 
@@ -236,28 +255,28 @@ print "Execution time: $Dh:$Dm:$Ds\n";
 sub help_user_simple {
 	my $programme = shift @_;
 	print STDERR  "Usage : perl $programme -k XXX -s \"XXX\"  -r \"XXX\" -date yyyy-mm-dd -get  \n";
-	print "type -version or -v to get actual version\n";
-	print "type -help or -h to get full help\n";
+	print "type perl $programme -version or perl $programme -v to get actual version\n";
+	print "type perl $programme -help or perl $programme -h to get full help\n";
 }
 #------------------------------------------------------------------------------
 # display full help document
 sub help_user_advance {
+	my $programme = shift @_;
 	print <<HEREDOC;
 	
-	Name : 
-		$0.
+	Name: 
+		$programme
 	
-	Synopsis :
-		a Perl script to get sequences informations
+	Synopsis:
+		A Perl script to get sequence information from GenBank RefSeq or ENA repositories.
 		
-	Usage :
+	Usage:
 	
-	  example : 
-	     perl $0 -k bacteria -s "Helicobacter pylori"  -r "Complete Genome" -date 2019-06-01 -get 
-	     perl $0 -k bacteria  -q 1  -r "Complete Genome" -date 2019-06-01 -get
-						 
-		
-	Kingdom :
+	  example: 
+	     perl $programme -k bacteria -s "Helicobacter pylori" -l "Complete Genome" -date 2019-06-01 -get 
+	     perl $programme -k bacteria -q 5 -l "Complete Genome" -date 2019-06-01 -get
+						 	
+	Kingdoms:
 		archaea
 		bacteria
 		fungi
@@ -268,16 +287,16 @@ sub help_user_advance {
 		vertebrate_other
 		viral
 		
-	General :
-		-help or -h  
-		-version or -v display actual program version
+	General:
+		-help or -h			displays this help 	
+		-version or -v		displays the current version of the program
 		
-	Options :
-		-get to obtain a new assembly summary
-		perl $0 -k "XXX" -s "XXX"  -r "XXX" -date yyyy-mm-dd -get
+	Options:
+		-get 				allows to obtain a new assembly summary
+		perl $0 -k "XXX" -s "XXX" -l "XXX" -date yyyy-mm-dd -get
 		
 		-k kingdom of the organism
-		perl $0 -k "bacteria" -s"XXX" -r "XXX" -date  yyyy-mm-dd -get 
+		perl $0 -k "bacteria" -s"XXX" -r "XXX" -date yyyy-mm-dd -get 
 		
 		-s specific species must be combin with -k option
 		perl $0 -k "bacteria"  -s "Helicobacter pylori" -get
@@ -1289,12 +1308,12 @@ sub download_ena_fastq {
 			$ftp->get($fastqFile) or die "get failed ", $ftp->message;
 		
 			my @baseAndExt = split /\./, $fastqFile;
-			my $unzipFastq = $baseAndExt[0] . ".fastq";
+			#my $unzipFastq = $baseAndExt[0] . ".fastq";
 		
-			gunzip $fastqFile => $unzipFastq or die "gunzip failed: $GunzipError\n";
-			move($unzipFastq, $fastqRep) or die "move failed: $!";
+			#gunzip $fastqFile => $unzipFastq or die "gunzip failed: $GunzipError\n";
+			move($fastqFile, $fastqRep) or die "move failed: $!"; # DC replaced $unzipFastq by $fastqFile
 		} 
-		unlink glob "*fastq.gz"  or die "$!: for file *fastq.gz";
+		#unlink glob "*fastq.gz"  or die "$!: for file *fastq.gz";
 	}
 	$ftp->quit;
 }
@@ -1414,7 +1433,18 @@ sub download_assembly_or_project {
 	
 	foreach my $sequence (@sequenceIdList) {
 		get_assembly_or_project($assemblySummary, $sequence, $ftpServor, $fldSep);
-	}
-	
-	
+	}	
+}
+
+sub isModuleInstalled {
+  my $mod = shift;
+
+  #eval("use $mod");
+  my $commandModule = `perldoc -l $mod`;
+  
+  if ($commandModule) {
+    return(1);
+  } else {
+    return(0);
+  }
 }
