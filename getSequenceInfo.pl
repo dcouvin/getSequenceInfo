@@ -67,11 +67,10 @@ use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
 use LWP::Simple qw(get);
 use POSIX qw(floor);
 
-##########################################################################################
-##  A Perl script tool to get sequence information from GenBank, 
-##  RefSeq or ENA repositories.
+####################################################################################################
+##  A Perl script allowing to get sequence information from GenBank, RefSeq or ENA repositories.
 ##  
-##########################################################################################
+####################################################################################################
 
 ### main program
 ### parameters
@@ -248,7 +247,8 @@ my ($D_y,$D_m,$D_d, $Dh,$Dm,$Ds) =
                    $end_year, $end_month, $end_day, $end_hour,$end_min,$end_sec);
 
 print "End Date: $start_year-$start_month-$start_day, $start_hour:$start_min:$start_sec\n";
-print "Execution time: $Dh:$Dm:$Ds\n";
+print "Thank you for using getSequenceInfo!\n";
+print "Execution time: $D_y years, $D_m months, $D_d days, $Dh:$Dm:$Ds (hours:minutes:seconds)\n";
 
 ### subroutine 
 # display global help document
@@ -261,20 +261,22 @@ sub help_user_simple {
 #------------------------------------------------------------------------------
 # display full help document
 sub help_user_advance {
-	my $programme = shift @_;
 	print <<HEREDOC;
 	
 	Name: 
-		$programme
+		$0
 	
 	Synopsis:
-		A Perl script to get sequence information from GenBank RefSeq or ENA repositories.
+		A Perl script allowing to get sequence information from GenBank RefSeq or ENA repositories.
 		
 	Usage:
-	
-	  example: 
-	     perl $programme -k bacteria -s "Helicobacter pylori" -l "Complete Genome" -date 2019-06-01 -get 
-	     perl $programme -k bacteria -q 5 -l "Complete Genome" -date 2019-06-01 -get
+	  perl $programme [options]
+	  examples: 
+	     perl $0 -k bacteria -s "Helicobacter pylori" -l "Complete Genome" -date 2019-06-01 -get 
+	     perl $0 -k viruses -q 5 -l "Complete Genome" -date 2019-06-01 -get
+	     perl $0 -k "bacteria" -taxid 9,24 -get -q 10 -c plasmid -dir genbank -o Results
+	     perl $0 -ena BN000065
+	     perl $0 -fastq ERR818002
 						 	
 	Kingdoms:
 		archaea
@@ -286,47 +288,30 @@ sub help_user_advance {
 		vertebrate_mammalian
 		vertebrate_other
 		viral
-		
+	
+	Assembly levels:
+		"Complete Genome"
+		Chromosome
+		Scaffold
+		Contig 
+	
 	General:
 		-help or -h			displays this help 	
-		-version or -v		displays the current version of the program
+		-version or -v			displays the current version of the program
 		
 	Options:
-		-get 				allows to obtain a new assembly summary
-		perl $0 -k "XXX" -s "XXX" -l "XXX" -date yyyy-mm-dd -get
-		
-		-k kingdom of the organism
-		perl $0 -k "bacteria" -s"XXX" -r "XXX" -date yyyy-mm-dd -get 
-		
-		-s specific species must be combin with -k option
-		perl $0 -k "bacteria"  -s "Helicobacter pylori" -get
-		
-		-taxid specific taxid must be combin with -k option
-		perl $0 -k "bacteria"  -taxid 9,24  -get
-		
-		-date  sequences are search from this date
-		perl $0 -k "bacteria"  -s "Helicobacter pylori"  -date  2019-06-01 -get
-		
-		-r allow to display sequences by a specific assembly level
-		perl $0 -k "bacteria"  -s "Helicobacter pylori" -r "Complete Genome" -get
-		
-		-o allow to rename the main folder project
-		perl $0 -k bacteria -s "Helicobacter pylori"  -r "Complete Genome" -o folder_name -date 2019-06-01 -get
-		
-		-r example Complete Genome, Chromosome, Scaffold, Contig 
-		
-		-q quantity of assembly download the maximum possible if the number is to high
-		perl $0 -k "XXX"  -q 10  -r "XXX" -date  yyyy-mm-dd -get
-		
-		-c specific component of the assembly avoid to download all type of
-		component of the assembly
-		perl $0 -k "XXX"  -q 00  -r "XXX" -c chromosome -date  yyyy-mm-dd -get
-		
-		-ena allow to download report and fasta file by ena ID 
-		perl $0 -ena BN000065
-		
-		-fastq allow to download fastq sequence on ena
-		perl $0 -fastq DRR001001
+		-get 				allows to obtain a new assembly summary	
+		-k or -kingdom [XXX]		allows to indicate kingdom of the organism (see the examples above)
+		-s or -species [XXX]		allows to indicate the species (must be combined with -k option)
+		-taxid [XXX]			allows to indicate a specific taxid (must be combined with -k option)
+		-assembly_or_project [XXX]	allows to indicate a specific assembly accession or bioproject (must be combined with -k option)
+		-date [XXX]			indicates the release date (with format yyyy-mm-dd) from which sequence information are available
+		-l or -level [XXX]		allows to select a specific assembly level (e.g. "Complete Genome")
+		-o or output [XXX]		allows users to name the output result folder
+		-q or -quantity [XXX]		allows to limit the total number of assemblies to be downloaded
+		-c or -components [XXX]		allows to select specific components of the assembly (e.g. plasmid, chromosome, ...)
+		-ena [XXX] 			allows to download report and fasta file given a ENA sequence ID 
+		-fastq [XXX]			allows to download FASTQ sequences from ENA given a run accession (https://ena-docs.readthedocs.io/en/latest/faq/archive-generated-files.html)
 		
 HEREDOC
 }
