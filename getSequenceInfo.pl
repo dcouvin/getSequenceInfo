@@ -270,7 +270,7 @@ sub help_user_advance {
 		A Perl script allowing to get sequence information from GenBank RefSeq or ENA repositories.
 		
 	Usage:
-	  perl $programme [options]
+	  perl $0 [options]
 	  examples: 
 	     perl $0 -k bacteria -s "Helicobacter pylori" -l "Complete Genome" -date 2019-06-01 -get 
 	     perl $0 -k viruses -q 5 -l "Complete Genome" -date 2019-06-01 -get
