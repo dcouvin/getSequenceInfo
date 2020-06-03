@@ -28,6 +28,7 @@ my $checkScaffold;
 my $specificComponent = "keyword";
 my $components;
 my $assemblyPrjID;
+my $outputFile;
 
 # window creation 
 my $mw = new MainWindow( 
@@ -127,9 +128,10 @@ $frame2->Label(
 
 $frame2->Checkbutton(
 	-text => 'yes',
-	-onvalue => 'yes',
-	-offvalue => 'no',
+	-onvalue => 1,
+	-offvalue => 0,
 	-relief => 'raised',
+	-width => 17,
 	-variable => \$getSummary,
 )->pack();
 
@@ -224,7 +226,21 @@ $frame3->Label(
 
 $frame3->Entry( 
 	-textvariable => \$assemblyPrjID,
-)->pack();  
+)->pack();
+
+$frame3->Label( 
+	-text       => 'obtain tracking output file : ', 
+	-background => 'white',
+)->pack(); 
+
+$frame3->Checkbutton(
+	-text => 'yes',
+	-onvalue => 1,
+	-offvalue => 0,
+	-relief => 'raised',
+	-width => 17,
+	-variable => \$outputFile,
+)->pack();
 
 # label and entry for ena
 $frame5->Label( 
@@ -287,7 +303,6 @@ sub search {
 	
 	my $command = "perl getSequenceInfo.pl";
 	
-	if (defined $getSummary) { $getSummary = $getSummary eq "yes" ? "-get" : ""; }
 	
 	foreach my $component (keys %checkComponentHash) {
 		if ($checkComponentHash{$component}) {
@@ -302,24 +317,30 @@ sub search {
 	if ($specificComponent && $specificComponent !~ /keyword/) {$components.= $specificComponent;}
 	
 	if (defined $enaID) {
-		print "$command -ena $enaID\n";
-		system("$command -ena $enaID");
+		$command .= " -ena $enaID";
+		if ($outputFile) { $command .= " -log"; }
+		print "$command\n";	
+		system("$command");
 		$i += 100;
 		$progress->value($i); 
 		$mw->update();
 		sleep 1; 
 	}
 	elsif (defined $fastqID) {
-		print "$command -fastq $fastqID\n";
-		system("$command -fastq $fastqID");
+		$command .= " -fastq $fastqID";
+		if ($outputFile) { $command .= " -log"; }
+		print "$command\n";	
+		system("$command");
 		$i += 100;
 		$progress->value($i); 
 		$mw->update();
 		sleep 1;
 	}
 	elsif (defined$assemblyPrjID) {
-		print "$command -assembly_or_project $assemblyPrjID\n";
-		system("$command -assembly_or_project $assemblyPrjID");
+		$command .= " -assembly_or_project $assemblyPrjID";
+		if ($outputFile) { $command .= " -log"; }
+		print "$command\n";	
+		system("$command");
 		$i += 100;
 		$progress->value($i); 
 		$mw->update();
@@ -348,7 +369,8 @@ sub search {
 			sleep 1;
 		}
 	
-		if (defined  $getSummary) { $command .= " $getSummary"; }
+		if ($outputFile) { $command.= " -log"; }
+		if ($getSummary) { $command .= " -get"; }
 		
 		print "$command\n";
 		system("$command");
@@ -356,6 +378,7 @@ sub search {
 		undef $getSummary;
 		undef $components;
 		undef $enaID;
+		undef $outputFile;
 		
 		$i += 10;
 		$progress->value($i); 

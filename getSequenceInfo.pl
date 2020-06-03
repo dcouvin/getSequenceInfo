@@ -120,6 +120,9 @@ my $sraID; # SRA  sequence ID
 
 my $assemblyPrjID; # assembly or prj ID
 
+my $outputFile; # track file
+
+
 if (@ARGV<1) {
 	help_user_simple($0);
 	exit 1;
@@ -147,13 +150,12 @@ for (my $i=0; $i<=$#ARGV; $i++) {
     	$releaseDate = $ARGV[$i+1];
     }
 	elsif ($ARGV[$i]=~/-getSummary/i or $ARGV[$i]=~/-get/i) {
-		if (-e "assembly_summary.txt") { unlink "assembly_summary.txt" or die "$! fail"; }
     	$getSummary = 1;
     }
 	elsif ($ARGV[$i]=~/-species/i or $ARGV[$i]=~/-s/i) {
 		$species = $ARGV[$i+1];
 	}
-	elsif ($ARGV[$i]=~/-level/i or $ARGV[$i]=~/-l/i) {
+	elsif ($ARGV[$i]=~/-level/i or $ARGV[$i]=~/-lev/i) {
 		$assemblyLevel = $ARGV[$i+1];
 	}
 	elsif ($ARGV[$i]=~/-components/i or $ARGV[$i]=~/-c/i) {
@@ -177,6 +179,9 @@ for (my $i=0; $i<=$#ARGV; $i++) {
 	elsif ($ARGV[$i]=~/-assembly_or_project/i) {
 		$assemblyPrjID = $ARGV[$i+1];
 	}
+	elsif ($ARGV[$i]=~/-log/i) {
+		$outputFile = "output.txt";
+	}
 }
 
 #define folcer separator and OS
@@ -192,8 +197,12 @@ elsif ($^O =~ /MSWin32/) {
 print "Working ...\n"; 
 
 if ($kingdom eq "viruses") { $kingdom = "viral"; }
+if (-e "assembly_summary.txt") { unlink "assembly_summary.txt" or die "fail remove file $!:"; }
+if ($outputFile && -e $outputFile) {unlink "$outputFile" or die "fail remove file $!:";}
 
 if (grep(/^$kingdom$/i, @availableKingdoms)) {
+	
+	my @patternParametersList;
 	
 	my @levelList = split /,/, $assemblyLevel;
 	
@@ -201,21 +210,21 @@ if (grep(/^$kingdom$/i, @availableKingdoms)) {
 		my @speciesList = split(/,/, $species);
 		
 		foreach my $actualSpecies (@speciesList) {
-			get_assembly_summary_species($quantity, $releaseDate, $directory, $kingdom,
-			$actualSpecies,\@levelList, $fldSep, $actualOS, $mainFolder, $assemblyTaxid);
+			get_assembly_summary_species( $quantity, $releaseDate, $directory,$kingdom,$actualSpecies,
+			\@levelList,  $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile);
 		}
 	}
 	elsif ($assemblyTaxid ne "") {
 		my @taxidList = split(/,/, $assemblyTaxid);
 		
 		foreach my $actualID (@taxidList) {
-			get_assembly_summary_species($quantity, $releaseDate, $directory, $kingdom, 
-			$species,\@levelList, $fldSep, $actualOS, $mainFolder, $actualID);
+			get_assembly_summary_species($quantity, $releaseDate, $directory,$kingdom,$species, 
+			\@levelList, $fldSep, $actualOS, $mainFolder, $actualID, $outputFile);
 		}
 	} 
 	else {
-		get_assembly_summary_species($quantity, $releaseDate, $directory, $kingdom, 
-		$species,\@levelList, $fldSep, $actualOS, $mainFolder, $assemblyTaxid);
+		get_assembly_summary_species($quantity, $releaseDate, $directory,$kingdom,$species,
+		\@levelList, $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile);
 	}	
 }
 
@@ -224,7 +233,7 @@ if ($sequenceID) {
 	my @sequenceIDList = split /,/, $sequenceID;
 	
 	foreach my $enaID (@sequenceIDList) {
-		sequence_ena($enaID);
+		sequence_ena($enaID, $outputFile);
 	}
 }
 
@@ -232,12 +241,12 @@ if ($sraID) {
 	my @sraIDList = split /,/, $sraID;
 	
 	foreach my $sra (@sraIDList) {
-		download_ena_fastq($enaFtpServor, $sra);
+		download_ena_fastq($enaFtpServor, $sra, $outputFile);
 	}	
 }
 
 if ($assemblyPrjID) {
-	download_assembly_or_project($assemblyPrjID, $ftpServor, $fldSep, $directory);
+	download_assembly_or_project($assemblyPrjID, $ftpServor, $fldSep, $directory, $outputFile);
 }
 
 my ($end_year,$end_month,$end_day, $end_hour,$end_min,$end_sec) = Today_and_Now();
@@ -324,7 +333,8 @@ sub program_version {
 }
 #------------------------------------------------------------------------------
 sub get_assembly_summary_species {
-	my ($quantity, $releaseDate, $directory, $kingdom, $species, $levelList, $fldSep, $actualOS, $mainFolder, $assemblyTaxid) = @_;
+	my ($quantity, $releaseDate, $directory, $kingdom, $species, $levelList, 
+	$fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile) = @_;
 	
 	# assembly_summary.txt file from NCBI FTP site
 	my $assemblySummary = "/genomes/$directory/$kingdom/assembly_summary.txt"; 
@@ -355,7 +365,17 @@ sub get_assembly_summary_species {
 		}
 	}
 	
-	if ($actualOS eq "linux") {	
+	# start of output file
+	if ($outputFile) {
+		open(LOG, ">>", $outputFile) or die "error open file $!:";
+		print LOG "###########################################\n\n";
+		print LOG "Start of execution\n\n";
+		print LOG "download assembly_summary.txt\n";
+		print LOG "-------------------------------------------\n";
+		close(LOG) or die "error close file $!:";
+	}
+	
+if ($actualOS =~ /linux/i) {	
 		# initialiaze tar manipulation
 		my $tar = Archive::Tar->new;
 	
@@ -365,24 +385,17 @@ sub get_assembly_summary_species {
 		$tar->extract_file("rankedlineage.dmp");
 	}
 	
-	my $oldAssemblyRep;
-	my $kingdomRep;
-
-	if ($mainFolder) {
-		$kingdomRep = $mainFolder; 
-	}
-	else { 
-		$kingdomRep = $kingdom."_".$start_year."_".$start_month."_".$start_day; 
-	}
 	
+	my $kingdomRep = $kingdom."_".$start_year."_".$start_month."_".$start_day;
 	
+	if ($mainFolder) { $kingdomRep = $mainFolder; }
 	mkdir $kingdomRep unless -d $kingdomRep;
 	
 	# Repository for request
 	my $repositoryAssembly = "assembly_repository_".$species."_".$assemblyTaxid."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
 	mkdir $repositoryAssembly unless -d $repositoryAssembly;
 	
-	$oldAssemblyRep = "." . $fldSep . $kingdomRep . $fldSep . $repositoryAssembly;
+	my $oldAssemblyRep = "." . $fldSep . $kingdomRep . $fldSep . $repositoryAssembly;
 	if (-d $oldAssemblyRep) { rmtree($oldAssemblyRep) }
 	
 	#  Repository for fna file
@@ -404,6 +417,13 @@ sub get_assembly_summary_species {
 		my $specificRep = $component."_".$species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
 		mkdir $specificRep unless -d $specificRep;
 		$componentsRepHash{$component} = $specificRep;
+	}
+	
+	if ($outputFile) {
+		open(LOG, ">>", $outputFile) or die "error open file $!:";
+		print LOG "create kingdom and components repository\n";
+		print LOG "-------------------------------------------\n";
+		close(LOG) or die "error close file $!:";
 	}
 	
 	my %assemblyReportList;
@@ -428,18 +448,18 @@ sub get_assembly_summary_species {
 					my $searchPattern = "";
 					my $regex = "";
 					
-					if ($species !~ //) {
+					if ($species !~ /^$/) {
 						$indexInfo = 7;
 						$searchPattern = $species;
 						$regex = qr/$searchPattern/i;
 					}
-					elsif ($assemblyTaxid !~ //) { 
+					elsif ($assemblyTaxid !~ /^$/) { 
 						$indexInfo = 6; 
 						$searchPattern = $assemblyTaxid;
 						$regex = qr/^$searchPattern$/i;
 					}
 					
-					if (($infoList[$indexInfo] =~ $regex) or ($kingdom !~ // && $searchPattern =~ //)) { 
+					if (($infoList[$indexInfo] =~ $regex) or ($kingdom !~ /^$/ && $searchPattern =~ /^$/)) { 
 						my @gcfInfo = split(/\//, $infoList[19]);  
 						my $gcfName = pop(@gcfInfo);
 						my $realDate = $infoList[14];
@@ -517,8 +537,26 @@ sub get_assembly_summary_species {
 				rmdir $componentRep or die "fail remove directory $!:"; 
 			}
 			
+			if ($outputFile) {
+				open(LOG, ">>", $outputFile) or die "error open file $!:";
+				print LOG "Fail found files for $species $kingdom\n"; 
+				print LOG  "$assemblyTaxid @levelList\n";
+				print LOG "-------------------------------------------\n";
+				print LOG "End of execution\n\n";
+				print LOG "###########################################\n\n";
+				close(LOG) or die "error close file $!:";
+			}
 		} 
 		else {
+			
+			if ($outputFile) {
+				open(LOG, ">>", $outputFile) or die "error open file $!:";
+				print LOG "Found files for $species $kingdom\n"; 
+				print LOG  "$assemblyTaxid @levelList\n";
+				print LOG "-------------------------------------------\n";
+				close(LOG) or die "error close file $!:";
+			}
+			
 			# write summary files 
 			my %componentsSumHash;
 			my @keysList = keys %assemblyReportList;
@@ -572,17 +610,33 @@ sub get_assembly_summary_species {
 				my $fnaFile = $repositoryFNA . $fldSep . $extFasta;
 				my $genbankFile = $repositoryGenbank . $fldSep . $extGenbank;
 				
-				write_assembly($reportFile, $fnaFile, $genbankFile, $summary, $repositoryAssembly,\%componentsSumHash, $kingdom,  $actualOS, \@header);
+				write_assembly($reportFile, $fnaFile, $genbankFile, $summary, $repositoryAssembly,
+				\%componentsSumHash, $kingdom,  $actualOS, \@header);
 			}
 			
 			write_html_summary($summary);
 			
+			if ($outputFile) {
+				open(LOG, ">>", $outputFile) or die "error open file $!:";
+				print LOG "Write assembly summary and html page\n"; 
+				print LOG "-------------------------------------------\n";
+				close(LOG) or die "error close file $!:";
+			}
+			
 			my @componentList = keys %componentsSumHash;
 			my %componentFastaHash = create_component_sequence_file($fldSep, $repositoryFNA, \@componentList);
+			
+			if ($outputFile && keys %componentFastaHash) {
+				open(LOG, ">>", $outputFile) or die "error open file $!:";
+				print LOG "create fasta component\n"; 
+				print LOG "-------------------------------------------\n";
+				close(LOG) or die "error close file $!:";
+			}
 			
 			foreach my $component (keys %componentFastaHash) { 
 				move($componentFastaHash{$component}, $componentsRepHash{$component}) or die "move failed: $!"; 
 			}
+			
 			
 			move($summary, $repositoryAssembly) or die "move failed: $!";
 			move($htmlSummary, $repositoryAssembly) or die "move failed: $!";
@@ -595,6 +649,15 @@ sub get_assembly_summary_species {
 				move($componentsRepHash{$component}, $repositoryAssembly . $fldSep . $componentsRepHash{$component}) or die "move failed: $!"
 			}
 			move($repositoryAssembly, $kingdomRep . $fldSep . $repositoryAssembly) or die "move failed: $!";
+			
+			if ($outputFile) {
+				open(LOG, ">>", $outputFile) or die "error open file $!:";
+				print LOG "move files to folders\n"; 
+				print LOG "-------------------------------------------\n";
+				print LOG "End of execution\n\n";
+				print LOG "###########################################\n\n";
+				close(LOG) or die "error close file $!:";
+			}
 			
 			if ($actualOS eq "linux") { unlink glob "*.dmp"  or die "for file *.dmp $!:"; }
 			unlink glob "*.gz  *.dmp sequence.txt"  or die "$!: for file *.gz sequence.txt";
@@ -809,7 +872,7 @@ sub get_fasta_and_report_sequence_ena_assembly {
 #------------------------------------------------------------------------------
 # download ENA
 sub sequence_ena {
-	my($sequenceID) = @_;
+	my($sequenceID, $outputFile) = @_;
 	my $assemblyRep = $sequenceID . "_folder";
 	my $fastaFile;
 	my $reportFile;
@@ -817,14 +880,40 @@ sub sequence_ena {
 	if(-d $assemblyRep) { rmtree($assemblyRep); }
 	mkdir $assemblyRep;
 	
+	if ($outputFile) {
+		open(LOG, ">>", $outputFile) or die "error open file $!:";
+		print LOG "###########################################\n\n";
+		print LOG "Start of execution\n\n";
+		print LOG "Creation $assemblyRep\n";
+		print LOG "-------------------------------------------\n";
+		close(LOG) or die "error close file $!:";
+	}
+	
 	if($sequenceID =~ /^GCA_.*/){
 		($fastaFile, $reportFile) = get_fasta_and_report_sequence_ena_assembly($sequenceID);
 	}
 	else {
 		($fastaFile, $reportFile) = get_fasta_and_report_sequence_ena_other($sequenceID);
 	}
+	
+	if ($outputFile) {
+		open(LOG, ">>", $outputFile) or die "error open file $!:";
+		print LOG "Download fasta file and report\n";
+		print LOG "-------------------------------------------\n";
+		close(LOG) or die "error close file $!:";
+	}
+	
 	move($fastaFile, $assemblyRep) or die "move failed: $!";
 	move($reportFile, $assemblyRep) or die "move failed: $!";
+	
+	if ($outputFile) {
+		open(LOG, ">>", $outputFile) or die "error open file $!:";
+		print LOG "Move fasta and report to folder\n";
+		print LOG "-------------------------------------------\n";
+		print LOG "End of execution\n\n";
+		print LOG "###########################################\n\n";
+		close(LOG) or die "error close file $!:";
+	}
 } 
 #------------------------------------------------------------------------------
 # download fasta sequence and report on ENA with ENA ID 
@@ -1245,7 +1334,7 @@ sub obtain_file {
 #------------------------------------------------------------------------------
 # download fastq file from ENA
 sub download_ena_fastq {
-	my ($enaFtpServor, $sraId) = @_;
+	my ($enaFtpServor, $sraId, $outputFile) = @_;
 	
 	my $fastqDir = "/vol1/fastq/";
 	my $dir1 = substr $sraId, 0, 6;
@@ -1253,6 +1342,13 @@ sub download_ena_fastq {
 	my $digits = substr $sraId, 3;
 	my $fastqRep =  $sraId . "_folder";
 	
+	
+	if ($outputFile) {
+		open(LOG, ">>", $outputFile) or die "error open file $!:";
+		print LOG "###########################################\n\n";
+		print LOG "Start of execution\n\n";
+		close(LOG) or die "error close file $!:";
+	}
 
 	if (length $digits == 6) {
 		$dir2 = $sraId;
@@ -1272,6 +1368,13 @@ sub download_ena_fastq {
 		$fastqDir .= $dir1 . "/" . $dir2 . "/" . $sraId . "/";
 	}
 	
+	if ($outputFile) {
+		open(LOG, ">>", $outputFile) or die "error open file $!:";
+		print LOG "recreate database folder path\n"; 
+		print LOG "-------------------------------------------\n";
+		close(LOG) or die "error close file $!:";
+	}
+	
 	my $ftp = Net::FTP->new($enaFtpServor, Debug => 0)
 	or die "Cannot connect to $enaFtpServor";
 	
@@ -1283,6 +1386,13 @@ sub download_ena_fastq {
 		or die "maybe undefined sequence id, can't go to $fastqDir: ", $ftp->message;
 	
 	my @fastqFiles = $ftp->ls("$sraId*"); 
+	
+	if ($outputFile) {
+		open(LOG, ">>", $outputFile) or die "error open file $!:";
+		print LOG "Search fastq files in path\n"; 
+		print LOG "-------------------------------------------\n";
+		close(LOG) or die "error close file $!:";
+	}
 	
 	if (!grep(/^$/, @fastqFiles)) {
 		
@@ -1299,13 +1409,28 @@ sub download_ena_fastq {
 			move($fastqFile, $fastqRep) or die "move failed: $!"; # DC replaced $unzipFastq by $fastqFile
 		} 
 		#unlink glob "*fastq.gz"  or die "$!: for file *fastq.gz";
+		
+		if ($outputFile) {
+			open(LOG, ">>", $outputFile) or die "error open file $!:";
+			print LOG "Download fastq File\n"; 
+			print LOG "-------------------------------------------\n";
+			close(LOG) or die "error close file $!:";
+		}
 	}
+	
+	if ($outputFile) {
+		open(LOG, ">>", $outputFile) or die "error open file $!:";
+		print LOG "End of execution\n";
+		print LOG "###########################################\n\n";
+		close(LOG) or die "error close file $!:";
+	}
+	
 	$ftp->quit;
 }
 #------------------------------------------------------------------------------
 # download fastq file from ENA
 sub get_assembly_or_project {
-	my ($file, $sequence, $ftpServor, $fldSep) = @_;
+	my ($file, $sequence, $ftpServor, $fldSep, $outputFile) = @_;
 	
 	my $pattern;
 	my $indexInfo;
@@ -1386,6 +1511,13 @@ sub get_assembly_or_project {
 	if (keys %folderHash) {
 		if (-e $repositorySequence) {rmtree($repositorySequence);}
 		
+		if ($outputFile) {
+			open(LOG, ">>", $outputFile) or die "error open file $!:";
+			print LOG "Download files \n";
+			print LOG "-------------------------------------------\n";
+			close(LOG) or die "error close file $!:";
+		}
+		
 		mkdir $repositorySequence;
 		mkdir $repositoryFNA;
 		mkdir $repositoryGenbank;
@@ -1398,11 +1530,19 @@ sub get_assembly_or_project {
 		move($repositoryGenbank, $repositorySequence . $fldSep. $repositoryGenbank) or die "error move file $!:";
 		move($repositoryReport, $repositorySequence . $fldSep. $repositoryReport) or die "error move file $!:";
 		unlink glob "*.gz"  or die "for file *.gz $!:";
+		
+		if ($outputFile) {
+			open(LOG, ">>", $outputFile) or die "error open file $!:";
+			print LOG "Move file to folder\n";
+			print LOG "-------------------------------------------\n";
+			close(LOG) or die "error close file $!:";
+		}
 	} 
 	
 }
+#------------------------------------------------------------------------------
 sub download_assembly_or_project {
-	my ($sequenceId, $ftpServor, $fldSep, $directory) = @_;
+	my ($sequenceId, $ftpServor, $fldSep, $directory, $outputFile) = @_;
 	
 	my $assemblySummary;
 	my @sequenceIdList = split /,/, $sequenceId;
@@ -1416,11 +1556,25 @@ sub download_assembly_or_project {
 	my $assemblySummaryPath = "/genomes/ASSEMBLY_REPORTS/".$assemblySummary; 
 	download_file($ftpServor, $assemblySummaryPath);
 	
+	if ($outputFile) {
+		open(LOG, ">>", $outputFile) or die "error open file $!:";
+		print LOG "###########################################\n\n";
+		print LOG "Start of execution\n\n";
+		close(LOG) or die "error close file $!:";
+	}
+	
 	foreach my $sequence (@sequenceIdList) {
-		get_assembly_or_project($assemblySummary, $sequence, $ftpServor, $fldSep);
-	}	
-}
+		get_assembly_or_project($assemblySummary, $sequence, $ftpServor, $fldSep, $outputFile);
+	}
 
+	if ($outputFile) {
+		open(LOG, ">>", $outputFile) or die "error open file $!:";
+		print LOG "End of execution\n\n";
+		print LOG "###########################################\n\n";
+		close(LOG) or die "error close file $!:";
+	}
+}
+#------------------------------------------------------------------------------
 sub isModuleInstalled {
   my $mod = shift;
 
