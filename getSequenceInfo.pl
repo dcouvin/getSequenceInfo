@@ -46,15 +46,15 @@ my @modules = qw(
 	Shannon::Entropy
 );
 
-foreach my $module (@modules) {
-	if (isModuleInstalled($module)) {
-	  print "$module is.................installed!\n";
-	} else {
-	  print "$module was not installed.\nLet us install it\n";
-	  system("cpan -i -f $module");
-	}
-}
-print "\n";
+# foreach my $module (@modules) {
+	# if (isModuleInstalled($module)) {
+	  # print "$module is.................installed!\n";
+	# } else {
+	  # print "$module was not installed.\nLet us install it\n";
+	  # system("cpan -i -f $module");
+	# }
+# }
+# print "\n";
 
 use Archive::Tar;
 use Bio::SeqIO;
@@ -96,7 +96,7 @@ my $ftpServor = "ftp.ncbi.nlm.nih.gov";
 
 my $enaFtpServor = "ftp.sra.ebi.ac.uk";
 
-my $fldSep; # folder seperation change by OS 
+my $fldSep = "/"; # folder seperation change by OS 
 
 my @availableKingdoms = (
 	"archaea",
@@ -110,7 +110,7 @@ my @availableKingdoms = (
 	"viral"
 );  # list of available kingdoms
 
-my $actualOS; # OS of the computer
+my $actualOS = "Unix"; # OS of the computer
 
 my $mainFolder; # folder where the assembly are place
 
@@ -185,11 +185,7 @@ for (my $i=0; $i<=$#ARGV; $i++) {
 }
 
 #define folcer separator and OS
-if ($^O =~ /linux/) { 
-	$fldSep = "/";
-	$actualOS = "linux";
-}
-elsif ($^O =~ /MSWin32/) { 
+if ($^O =~ /MSWin32/) { 
 	$fldSep = "\\";
 	$actualOS	= "MSWin32";
 }
@@ -197,7 +193,7 @@ elsif ($^O =~ /MSWin32/) {
 print "Working ...\n"; 
 
 if ($kingdom eq "viruses") { $kingdom = "viral"; }
-if (-e "assembly_summary.txt") { unlink "assembly_summary.txt" or die "fail remove file $!:"; }
+if ($getSummary && -e "assembly_summary.txt") { unlink "assembly_summary.txt" or die "fail remove file $!:"; }
 if ($outputFile && -e $outputFile) {unlink "$outputFile" or die "fail remove file $!:";}
 
 if (grep(/^$kingdom$/i, @availableKingdoms)) {
@@ -345,8 +341,10 @@ sub get_assembly_summary_species {
 	# allow to check old summary download
 	my $oldKingdom = ""; 
 	
+	
 	# check assembly summary download
-	if ($getSummary || ! -e $assemblySummary) { 
+	if ($getSummary || ! -e $assemblySummary) {
+		print "telechargement en cours\n";
 		download_file($ftpServor, $assemblySummary);
 		open(KIN, ">", "kingdom.txt") or die "error open file $!:";
 		print KIN $kingdom;
@@ -365,6 +363,7 @@ sub get_assembly_summary_species {
 		}
 	}
 	
+	
 	# start of output file
 	if ($outputFile) {
 		open(LOG, ">>", $outputFile) or die "error open file $!:";
@@ -374,8 +373,9 @@ sub get_assembly_summary_species {
 		print LOG "-------------------------------------------\n";
 		close(LOG) or die "error close file $!:";
 	}
+
 	
-if ($actualOS =~ /linux/i) {	
+if ($actualOS =~ /Unix/i) {	
 		# initialiaze tar manipulation
 		my $tar = Archive::Tar->new;
 	
@@ -525,7 +525,7 @@ if ($actualOS =~ /linux/i) {
 			print "$species $kingdom $assemblyTaxid @levelList\n";
 			print "##################################################################\n\n";
 			
-			if ($actualOS eq "linux") { unlink glob "*.dmp *.gz"  or die "for file *.dmp *.gz $!:"; }
+			if ($actualOS =~ /unix/i) { unlink glob "*.dmp *.gz"  or die "for file *.dmp *.gz $!:"; }
 			
 			if (empty_folder($kingdomRep)) { rmdir $kingdomRep or die "fail remove directory $!:"; }
 			rmdir $repositoryAssembly or die "fail remove directory $!:";
@@ -659,7 +659,7 @@ if ($actualOS =~ /linux/i) {
 				close(LOG) or die "error close file $!:";
 			}
 			
-			if ($actualOS eq "linux") { unlink glob "*.dmp"  or die "for file *.dmp $!:"; }
+			if ($actualOS =~ /unix/i) { unlink glob "*.dmp"  or die "for file *.dmp $!:"; }
 			unlink glob "*.gz  *.dmp sequence.txt"  or die "$!: for file *.gz sequence.txt";
 		}
 	} 
@@ -734,11 +734,11 @@ sub write_assembly {
 	
 	if ($hashInformations{' Taxid'} !~ /\s+/) { $taxId = $hashInformations{' Taxid'} };
 
-	if ($actualOS eq "linux") {
-		($species, $genus, $family, $order, $class, $phylum) =  get_taxonomic_rank($taxId, "rankedlineage.dmp");
-	}
-	else {
+	
+	if ($actualOS =~  /MSWin32/i) {
 		($species, $genus, $family, $order, $class, $phylum) = get_taxonomic_rank_genbank($genbankFile);
+	} else {
+		($species, $genus, $family, $order, $class, $phylum) =  get_taxonomic_rank($taxId, "rankedlineage.dmp");
 	}
 	
 	$GCpercent = gc_percent($seq);

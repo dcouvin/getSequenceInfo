@@ -325,6 +325,8 @@ sub search {
 		$progress->value($i); 
 		$mw->update();
 		sleep 1; 
+		
+		undef $enaID;
 	}
 	elsif (defined $fastqID) {
 		$command .= " -fastq $fastqID";
@@ -335,8 +337,10 @@ sub search {
 		$progress->value($i); 
 		$mw->update();
 		sleep 1;
+		
+		undef $fastqID;
 	}
-	elsif (defined$assemblyPrjID) {
+	elsif (defined $assemblyPrjID) {
 		$command .= " -assembly_or_project $assemblyPrjID";
 		if ($outputFile) { $command .= " -log"; }
 		print "$command\n";	
@@ -345,6 +349,8 @@ sub search {
 		$progress->value($i); 
 		$mw->update();
 		sleep 1;
+		
+		undef  $assemblyPrjID;
 	}
 	else {
 		my @optionCharList = ( '-k', '-s', '-taxid', '-q', '-l', '-c', '-o', '-dir', '-date');
@@ -377,7 +383,6 @@ sub search {
 		
 		undef $getSummary;
 		undef $components;
-		undef $enaID;
 		undef $outputFile;
 		
 		$i += 10;
