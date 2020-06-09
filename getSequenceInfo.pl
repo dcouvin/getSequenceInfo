@@ -193,7 +193,6 @@ if ($^O =~ /MSWin32/) {
 print "Working ...\n"; 
 
 if ($kingdom eq "viruses") { $kingdom = "viral"; }
-if ($getSummary && -e "assembly_summary.txt") { unlink "assembly_summary.txt" or die "fail remove file $!:"; }
 if ($outputFile && -e $outputFile) {unlink "$outputFile" or die "fail remove file $!:";}
 
 if (grep(/^$kingdom$/i, @availableKingdoms)) {
@@ -207,7 +206,7 @@ if (grep(/^$kingdom$/i, @availableKingdoms)) {
 		
 		foreach my $actualSpecies (@speciesList) {
 			get_assembly_summary_species( $quantity, $releaseDate, $directory,$kingdom,$actualSpecies,
-			\@levelList,  $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile);
+			\@levelList,  $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile, $getSummary);
 		}
 	}
 	elsif ($assemblyTaxid ne "") {
@@ -215,12 +214,12 @@ if (grep(/^$kingdom$/i, @availableKingdoms)) {
 		
 		foreach my $actualID (@taxidList) {
 			get_assembly_summary_species($quantity, $releaseDate, $directory,$kingdom,$species, 
-			\@levelList, $fldSep, $actualOS, $mainFolder, $actualID, $outputFile);
+			\@levelList, $fldSep, $actualOS, $mainFolder, $actualID, $outputFile, $getSummary);
 		}
 	} 
 	else {
 		get_assembly_summary_species($quantity, $releaseDate, $directory,$kingdom,$species,
-		\@levelList, $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile);
+		\@levelList, $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile, $getSummary);
 	}	
 }
 
@@ -330,39 +329,16 @@ sub program_version {
 #------------------------------------------------------------------------------
 sub get_assembly_summary_species {
 	my ($quantity, $releaseDate, $directory, $kingdom, $species, $levelList, 
-	$fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile) = @_;
+	$fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile, $getSummary) = @_;
 	
 	# assembly_summary.txt file from NCBI FTP site
-	my $assemblySummary = "/genomes/$directory/$kingdom/assembly_summary.txt"; 
+	my $assemblySummary = get_summaries($ftpServor, $kingdom, $getSummary);
 	
 	# lineage folder
 	my $lineage_file = "/pub/taxonomy/new_taxdump/new_taxdump.tar.gz";
 	
 	# allow to check old summary download
 	my $oldKingdom = ""; 
-	
-	
-	# check assembly summary download
-	if ($getSummary || ! -e $assemblySummary) {
-		print "telechargement en cours\n";
-		download_file($ftpServor, $assemblySummary);
-		open(KIN, ">", "kingdom.txt") or die "error open file $!:";
-		print KIN $kingdom;
-		close(KIN) or die "error close file $!:";
-		
-	} elsif ($kingdom ne "" && $species eq  "") {
-		open(KIN, "<", "kingdom.txt") or die "error open file $!:";
-		$oldKingdom = trim(<KIN>);
-		close(KIN) or die "error close file $!:";
-		
-		if ($kingdom ne $oldKingdom) { 
-			download_file($ftpServor, $assemblySummary);
-			open(KIN, ">", "kingdom.txt") or die "error open file $!:";
-			print KIN $kingdom;
-			close(KIN) or die "error close file $!:";
-		}
-	}
-	
 	
 	# start of output file
 	if ($outputFile) {
@@ -375,15 +351,15 @@ sub get_assembly_summary_species {
 	}
 
 	
-if ($actualOS =~ /Unix/i) {	
-		# initialiaze tar manipulation
-		my $tar = Archive::Tar->new;
+# if ($actualOS =~ /Unix/i) {	
+		#initialiaze tar manipulation
+		# my $tar = Archive::Tar->new;
 	
-		# download taxdump folder
-		download_file($ftpServor, $lineage_file);
-		$tar->read("new_taxdump.tar.gz");
-		$tar->extract_file("rankedlineage.dmp");
-	}
+		#download taxdump folder
+		# download_file($ftpServor, $lineage_file);
+		# $tar->read("new_taxdump.tar.gz");
+		# $tar->extract_file("rankedlineage.dmp");
+	# }
 	
 	
 	my $kingdomRep = $kingdom."_".$start_year."_".$start_month."_".$start_day;
@@ -433,9 +409,9 @@ if ($actualOS =~ /Unix/i) {
 	
 	if ($checkCompleteGenome > 0) {@assemblyRepresentationList = qw/Full/;}
 	
-	if (-e "assembly_summary.txt") {
+	if (-e $assemblySummary) {
 		# Read file
-		open (SUM, "assembly_summary.txt") or die "open assembly_summary.txt : $!";
+		open (SUM, $assemblySummary) or die " error open assembly_summary.txt  $!:";
 		while(<SUM>) {
 			chomp;
 			if ($_ !~  m/^#/) {
@@ -587,8 +563,8 @@ if ($actualOS =~ /Unix/i) {
 				print HEAD $_ . "\t";
 			}
 			
-			print HEAD "Pubmed\tNucle score\tSpecies\tGenus\tFamily\tOrder\tClass\t"; 
-			print HEAD "Phylum\tKingdom\tCountry\tHost\tIsolation source\tA percent\t";
+			print HEAD "Pubmed\tNucle score\tClassification\t"; 
+			print HEAD "Country\tHost\tIsolation source\tA percent\t";
 			print HEAD "T percent\tG percent\tC percent\tN percent\tGC percent\t";
 			print HEAD "ATGC ratio\tLength\tShape\n";
 			close(HEAD) or die "error close file : $!";
@@ -659,8 +635,8 @@ if ($actualOS =~ /Unix/i) {
 				close(LOG) or die "error close file $!:";
 			}
 			
-			if ($actualOS =~ /unix/i) { unlink glob "*.dmp"  or die "for file *.dmp $!:"; }
-			unlink glob "*.gz  *.dmp sequence.txt"  or die "$!: for file *.gz sequence.txt";
+			# if ($actualOS =~ /unix/i) { unlink glob "*.dmp"  or die "for file *.dmp $!:"; }
+			unlink glob "*.gz sequence.txt"  or die "$!: for file *.gz sequence.txt";
 		}
 	} 
 }
@@ -681,12 +657,12 @@ sub write_assembly {
 	my $pubmedId = "na";
 	my $host = "na";
 	my $isoSource = "na";
-	my $species = "na";
-	my $genus = "na";
-	my $family = "na";
-	my $order = "na";
-	my $class = "na";
-	my $phylum = "na";
+	# my $species = "na";
+	# my $genus = "na";
+	# my $family = "na";
+	# my $order = "na";
+	# my $class = "na";
+	# my $phylum = "na";
 	my $shape = "na";
 	my $geneNumber = "na";
 	
@@ -696,7 +672,7 @@ sub write_assembly {
 		$_ =~ s/^#*//;
 		if ($_ =~ /:/) {
 			my @ligne = split(':', $_);
-			if (defined $ligne[1]) {
+			if ($ligne[1]) {
 				$ligne[1] = trim($ligne[1]);
 				$hashInformations{$ligne[0]} = $ligne[1];
 			}
@@ -734,12 +710,7 @@ sub write_assembly {
 	
 	if ($hashInformations{' Taxid'} !~ /\s+/) { $taxId = $hashInformations{' Taxid'} };
 
-	
-	if ($actualOS =~  /MSWin32/i) {
-		($species, $genus, $family, $order, $class, $phylum) = get_taxonomic_rank_genbank($genbankFile);
-	} else {
-		($species, $genus, $family, $order, $class, $phylum) =  get_taxonomic_rank($taxId, "rankedlineage.dmp");
-	}
+	my $classification = get_taxonomic_rank_genbank($genbankFile);
 	
 	$GCpercent = gc_percent($seq);
 	my ($ade, $thy, $gua, $cyt, $n, $length) = number_nuc_length_seq($fnaFile);
@@ -765,10 +736,10 @@ sub write_assembly {
 
 	
 	open(SUM, ">>", $summary) or die "error open file $!:";
-	print SUM $pubmedId . "\t" . $nucleScore . "\t" . $species . "\t" . $genus . "\t" . $family ."\t" ; 
-	print SUM $order . "\t" . $class . "\t" . $phylum . "\t" . $kingdom . "\t" . $country . "\t" . $host . "\t"; 
-	print SUM $isoSource  . "\t" . $aPercent . "\t" . $tPercent . "\t" . $gPercent . "\t" . $cPercent  ."\t" ;
-	print SUM $nPercent . "\t" . $GCpercent ."\t". $atgcRatio ."\t". $length . "\t". $shape."\n"; 
+	print SUM $pubmedId . "\t" . $nucleScore . "\t" . $classification ."\t" ; 
+	print SUM $country . "\t" . $host . "\t" . $isoSource  . "\t" . $aPercent . "\t" ; 
+	print SUM $tPercent . "\t" . $gPercent . "\t" . $cPercent  ."\t" . $nPercent . "\t";
+	print SUM $GCpercent ."\t". $atgcRatio ."\t". $length . "\t". $shape."\n"; 
 	close(SUM) or die "error close file: $!";
 	
 	write_assembly_component($fnaFile, $genomeName, \%componentsSumHash);
@@ -1090,13 +1061,6 @@ sub add_table_content {
 #getTaxonomicRanks (function allowing to get taxonomic ranks from Genbank file)
 sub get_taxonomic_rank_genbank {
 	my ($genbank) = @_;
-	my $species = "na";
-	my $genus = "na";
-	my $family = "na";
-	my $order = "na";
-	my $class = "na";
-	my $phylum = "na"; 
-	my $kingdomGB = "na";
 
 	my $seqio_object = Bio::SeqIO->new(-file => $genbank);
 	my $seq_object = $seqio_object->next_seq;
@@ -1107,16 +1071,20 @@ sub get_taxonomic_rank_genbank {
 
 	# get all taxa from the ORGANISM section in an array
 	my @classification = $seq_object->species->classification;
-	my $arraySize = @classification;
+	# my $arraySize = @classification;
+	
+	# print "@classification\n";
 
-	if($arraySize == 7){
-		($species,$genus,$family,$order,$class,$phylum,$kingdomGB) = @classification;
-	}
-	elsif($arraySize == 4){
-		($species,$class,$phylum,$kingdomGB) = @classification;
-	}
+	# if($arraySize == 7){
+		# ($species,$genus,$family,$order,$class,$phylum,$kingdomGB) = @classification;
+	# }
+	# elsif($arraySize == 4){
+		# ($species,$class,$phylum,$kingdomGB) = @classification;
+	# }
+	
+	my $classification = join(" ", @classification);
   	
-	return ($species,$genus,$family,$order,$class,$phylum); 
+	return ($classification); 
 }
 #------------------------------------------------------------------------------
 #add all sequences components to file
@@ -1586,4 +1554,61 @@ sub isModuleInstalled {
   } else {
     return(0);
   }
+}
+#------------------------------------------------------------------------------
+# get summaries 
+sub get_summaries {
+	my ($ftpServor, $kingdomList, $getSummary) = @_;
+	
+	my $summaryCumulate;
+	my $assemblySummary = "assembly_summary.txt";
+	my $downloadSum;
+	my $uncheckSum;
+
+	opendir my $workingDirectory, "./" or die "error open dire $!:";
+	my @filesList = readdir $workingDirectory; 
+	closedir $workingDirectory;
+	
+	my $found = grep{/$assemblySummary/i} @filesList;
+	if ($found  == 0) { $downloadSum = 1; } 
+	
+	
+	for my $file (@filesList) {
+		if ($file =~ /assembly_summary.txt/i) {
+			$summaryCumulate = $file;
+			for my $kingdom (split /,/, $kingdomList) {
+				if ($file !~ /$kingdom/i) {
+					$uncheckSum = 1;
+				}
+			}			
+		} 
+	}
+	
+	if ($uncheckSum || $downloadSum || $getSummary) {
+		if ($uncheckSum) { 
+			unlink $summaryCumulate or die "error remove file $!:";
+			$summaryCumulate = "";
+		}
+		
+		for my $kingdom (split /,/, $kingdomList) {
+			$summaryCumulate .= $kingdom . "_";
+		}
+		
+		$summaryCumulate .= "assembly_summary.txt"; 
+		
+		for my $kingdom (split /,/, $kingdomList) {
+			my $assemblySummaryLink = "/genomes/genbank/$kingdom/assembly_summary.txt";
+			download_file($ftpServor, $assemblySummaryLink);	
+			open (SUM, "<", $assemblySummary) or die "error open file $!:";
+			open (CUMUL, ">>", $summaryCumulate) or die "error open file $:!";
+			while (<SUM>) {
+				print CUMUL $_;
+			}
+			close (CUMUL) or die "error close file $!:";
+			close (SUM) or die "error close file $!:";
+			unlink $assemblySummary or die "error remove file $!:"; 
+		}
+	}
+	
+	return $summaryCumulate;
 }
