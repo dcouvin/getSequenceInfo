@@ -80,7 +80,7 @@ my $kingdom = ""; # kingdom of organism
 
 my $releaseDate = "0000-00-00"; # sequence are download from this release date
 
-my $components = "plasmid,chromosome,scaffold,contig";  # components of the assembly
+my $components;  # components of the assembly
 
 my $species = ""; # species name
 
@@ -206,7 +206,7 @@ if (grep(/^$kingdom$/i, @availableKingdoms)) {
 		
 		foreach my $actualSpecies (@speciesList) {
 			get_assembly_summary_species( $quantity, $releaseDate, $directory,$kingdom,$actualSpecies,
-			\@levelList,  $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile, $getSummary);
+			\@levelList,  $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile, $getSummary, $components);
 		}
 	}
 	elsif ($assemblyTaxid ne "") {
@@ -214,12 +214,12 @@ if (grep(/^$kingdom$/i, @availableKingdoms)) {
 		
 		foreach my $actualID (@taxidList) {
 			get_assembly_summary_species($quantity, $releaseDate, $directory,$kingdom,$species, 
-			\@levelList, $fldSep, $actualOS, $mainFolder, $actualID, $outputFile, $getSummary);
+			\@levelList, $fldSep, $actualOS, $mainFolder, $actualID, $outputFile, $getSummary, $components);
 		}
 	} 
 	else {
 		get_assembly_summary_species($quantity, $releaseDate, $directory,$kingdom,$species,
-		\@levelList, $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile, $getSummary);
+		\@levelList, $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile, $getSummary, $components);
 	}	
 }
 
@@ -329,13 +329,12 @@ sub program_version {
 #------------------------------------------------------------------------------
 sub get_assembly_summary_species {
 	my ($quantity, $releaseDate, $directory, $kingdom, $species, $levelList, 
-	$fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile, $getSummary) = @_;
+	$fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile, $getSummary, $components) = @_;
 	
 	# assembly_summary.txt file from NCBI FTP site
 	my $assemblySummary = get_summaries($ftpServor, $kingdom, $getSummary);
-	
-	# lineage folder
-	my $lineage_file = "/pub/taxonomy/new_taxdump/new_taxdump.tar.gz";
+	#lineage folder
+	# my $lineage_file = "/pub/taxonomy/new_taxdump/new_taxdump.tar.gz";
 	
 	# allow to check old summary download
 	my $oldKingdom = ""; 
@@ -389,10 +388,12 @@ sub get_assembly_summary_species {
 	# Repositories for required components
 	my %componentsRepHash;
 	
-	for my $component (split /,/, $components) {
-		my $specificRep = $component."_".$species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
-		mkdir $specificRep unless -d $specificRep;
-		$componentsRepHash{$component} = $specificRep;
+	if ($components) {
+		for my $component (split /,/, $components) {
+			my $specificRep = $component."_".$species."_".$kingdom."_".$start_year."_".$start_month."_".$start_day;
+			mkdir $specificRep unless -d $specificRep;
+			$componentsRepHash{$component} = $specificRep;
+		}
 	}
 	
 	if ($outputFile) {
@@ -509,8 +510,10 @@ sub get_assembly_summary_species {
 			rmdir $repositoryGenbank or die "fail remove directory $!:"; 
 			rmdir $repositoryReport or die "fail remove directory $!:"; 
 			
-			for my  $componentRep (values %componentsRepHash) {
-				rmdir $componentRep or die "fail remove directory $!:"; 
+			if ($components) {
+				for my  $componentRep (values %componentsRepHash) {
+					rmdir $componentRep or die "fail remove directory $!:"; 
+				}
 			}
 			
 			if ($outputFile) {
@@ -539,11 +542,13 @@ sub get_assembly_summary_species {
 			my $summary = "summary.xls";
 			my $htmlSummary = "summary.html";
 			
-			for my $component (split /,/, $components) {
-				my $specificSummary =  $component. "_summary.xls"; 
-				$componentsSumHash{$component} = $specificSummary;
+			if ($components) {
+				for my $component (split /,/, $components) {
+					my $specificSummary =  $component. "_summary.xls"; 
+					$componentsSumHash{$component} = $specificSummary;
+				}
 			}
-		
+			
 			my $fileReport = "." . $fldSep. $repositoryReport . $fldSep . $keysList[0];
 			my @header = ();
 			
@@ -569,14 +574,14 @@ sub get_assembly_summary_species {
 			print HEAD "ATGC ratio\tLength\tShape\n";
 			close(HEAD) or die "error close file : $!";
 			
-	
-			foreach my $componentSummary (values %componentsSumHash) {
-				open(SUM, ">>", $componentSummary) or die "error open file : $!";
-				print SUM "Id\tAssembly\tDescription\tLength\tStatus\tLevel\t";
-				print SUM "GC percent\tA percent\tT percent\tG percent\tC percent\n";	
-				close(SUM) or die "error close file : $!";
+			if ($components) {
+				foreach my $componentSummary (values %componentsSumHash) {
+					open(SUM, ">>", $componentSummary) or die "error open file : $!";
+					print SUM "Id\tAssembly\tDescription\tLength\tStatus\tLevel\t";
+					print SUM "GC percent\tA percent\tT percent\tG percent\tC percent\n";	
+					close(SUM) or die "error close file : $!";
+				}
 			}
-		 
 		 
 			for my $file (@keysList) {
 				my $reportFile =  $repositoryReport . $fldSep . $file;
@@ -599,20 +604,22 @@ sub get_assembly_summary_species {
 				close(LOG) or die "error close file $!:";
 			}
 			
-			my @componentList = keys %componentsSumHash;
-			my %componentFastaHash = create_component_sequence_file($fldSep, $repositoryFNA, \@componentList);
 			
-			if ($outputFile && keys %componentFastaHash) {
-				open(LOG, ">>", $outputFile) or die "error open file $!:";
-				print LOG "create fasta component\n"; 
-				print LOG "-------------------------------------------\n";
-				close(LOG) or die "error close file $!:";
-			}
+			if ($components) {
+				my @componentList = keys %componentsSumHash;
+				my %componentFastaHash = create_component_sequence_file($fldSep, $repositoryFNA, \@componentList);
 			
-			foreach my $component (keys %componentFastaHash) { 
-				move($componentFastaHash{$component}, $componentsRepHash{$component}) or die "move failed: $!"; 
-			}
+				if ($outputFile && keys %componentFastaHash) {
+					open(LOG, ">>", $outputFile) or die "error open file $!:";
+					print LOG "create fasta component\n"; 
+					print LOG "-------------------------------------------\n";
+					close(LOG) or die "error close file $!:";
+				}
 			
+				foreach my $component (keys %componentFastaHash) { 
+					move($componentFastaHash{$component}, $componentsRepHash{$component}) or die "move failed: $!"; 
+				}
+			} 
 			
 			move($summary, $repositoryAssembly) or die "move failed: $!";
 			move($htmlSummary, $repositoryAssembly) or die "move failed: $!";
@@ -620,10 +627,13 @@ sub get_assembly_summary_species {
 			move($repositoryGenbank, $repositoryAssembly . $fldSep . $repositoryGenbank) or die "move failed: $!";
 			move($repositoryReport  , $repositoryAssembly . $fldSep . $repositoryReport) or die "move failed: $!";
 			
-			for my $component (keys %componentsSumHash) {
-				move($componentsSumHash{$component}, $componentsRepHash{$component}) or die "move failed: $!";
-				move($componentsRepHash{$component}, $repositoryAssembly . $fldSep . $componentsRepHash{$component}) or die "move failed: $!"
+			if ($components) {
+				for my $component (keys %componentsSumHash) {
+					move($componentsSumHash{$component}, $componentsRepHash{$component}) or die "move failed: $!";
+					move($componentsRepHash{$component}, $repositoryAssembly . $fldSep . $componentsRepHash{$component}) or die "move failed: $!"
+				}
 			}
+			
 			move($repositoryAssembly, $kingdomRep . $fldSep . $repositoryAssembly) or die "move failed: $!";
 			
 			if ($outputFile) {
@@ -670,27 +680,24 @@ sub write_assembly {
 	while (<REP>) {
 		chomp;
 		$_ =~ s/^#*//;
+		if ($_  =~ /assembled-molecule/i) { $assemblyLine = $_; }
 		if ($_ =~ /:/) {
-			my @ligne = split(':', $_);
-			if ($ligne[1]) {
-				$ligne[1] = trim($ligne[1]);
-				$hashInformations{$ligne[0]} = $ligne[1];
-			}
+			my @line = split /:/, $_;
+			if ($line[1]) { $hashInformations{$line[0]} = trim($line[1]); }
 		}
-		if ($_  =~ /assembled-molecule/) { $assemblyLine = $_; }
 	}
 	close(REP) or die "error close file $!:";
 	
-	my @header_report = keys %hashInformations;
 	
 	open(SUM, ">>", $summary) or die "error open file $!:";
 	foreach my $k(@header) {
-		if (grep $_ eq $k, @header_report) {
+		if (grep $_ eq $k, keys %hashInformations) {
+			
 			my $information = $hashInformations{$k};
 			
-			if ($k =~ /Assembly name/) { $genomeName = $information; }
+			if ($k =~ /Assembly name/i) { $genomeName = $information; }
 			
-			if (($information =~ /^\s*$/) || ($information eq "")) {
+			if ($information =~ /^\s*$/) {
 				print SUM "na\t";
 			} else { 
 				print SUM $information . "\t";
@@ -708,7 +715,11 @@ sub write_assembly {
 	}
 	close(FNA)  or die "error close file :$!";
 	
-	if ($hashInformations{' Taxid'} !~ /\s+/) { $taxId = $hashInformations{' Taxid'} };
+	foreach my $summaryKey (keys %hashInformations) {
+		if ($summaryKey =~ /taxid/i) {
+			$taxId = $hashInformations{$summaryKey};
+		}
+	}
 
 	my $classification = get_taxonomic_rank_genbank($genbankFile);
 	
@@ -742,7 +753,9 @@ sub write_assembly {
 	print SUM $GCpercent ."\t". $atgcRatio ."\t". $length . "\t". $shape."\n"; 
 	close(SUM) or die "error close file: $!";
 	
-	write_assembly_component($fnaFile, $genomeName, \%componentsSumHash);
+	if (%componentsSumHash) {
+		write_assembly_component($fnaFile, $genomeName, \%componentsSumHash);
+	}
 }
 #------------------------------------------------------------------------------
 # get assembly component
