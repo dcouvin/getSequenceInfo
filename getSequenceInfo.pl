@@ -40,21 +40,21 @@ my @modules = qw(
 	IO::Uncompress::Gunzip
 	LWP::Simple
 	POSIX
-	Tk
-	Tk::ProgressBar
-	utf8
-	Shannon::Entropy
 );
 
-# foreach my $module (@modules) {
-	# if (isModuleInstalled($module)) {
-	  # print "$module is.................installed!\n";
-	# } else {
-	  # print "$module was not installed.\nLet us install it\n";
-	  # system("cpan -i -f $module");
-	# }
-# }
-# print "\n";
+foreach my $module (@modules) {
+	if (isModuleInstalled($module)) {
+	  print "$module is.................installed!\n";
+	} 
+	else {
+	  print "$module is not installed. Please install it and try again.\n";
+	  print "You can reinstall the $0 as shown on the README page or use the following command to install the module:\n";
+	  print "cpan -i -f $module\n";
+	  #system("cpan -i -f $module");
+	  exit 1;
+	}
+}
+print "\n";
 
 use Archive::Tar;
 use Bio::SeqIO;
@@ -66,6 +66,10 @@ use Net::FTP;
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
 use LWP::Simple qw(get);
 use POSIX qw(floor);
+#use Tk;
+#use Tk::ProgressBar;
+#use utf8;
+#use Shannon::Entropy;
 
 ####################################################################################################
 ##  A Perl script allowing to get sequence information from GenBank, RefSeq or ENA repositories.
@@ -78,17 +82,17 @@ my $directory = "genbank";
 	
 my $kingdom = ""; # kingdom of organism
 
-my $releaseDate = "0000-00-00"; # sequence are download from this release date
+my $releaseDate = "0000-00-00"; # sequences are downloaded from this release date
 
 my $components;  # components of the assembly
 
 my $species = ""; # species name
 
-my $getSummary; # indicates if a new assembly report is required
+my $getSummary; # indicates if a new assembly summary is required
 
 my $assemblyLevel = "Complete Genome,Chromosome,Scaffold,Contig"; # assembly level of the genome
 
-my $quantity; # number of sequences to download
+my $quantity; # limit number of assemblies to download
 
 my $sequenceID;
 
@@ -112,15 +116,15 @@ my @availableKingdoms = (
 
 my $actualOS = "Unix"; # OS of the computer
 
-my $mainFolder; # folder where the assembly are place
+my $mainFolder; # folder in which the assemblies results are stored
 
 my $assemblyTaxid = ""; # taxid for assembly
 
-my $sraID; # SRA  sequence ID
+my $sraID; # SRA sequence ID
 
 my $assemblyPrjID; # assembly or prj ID
 
-my $outputFile; # track file
+my $outputFile; # log file
 
 
 if (@ARGV<1) {
@@ -155,7 +159,7 @@ for (my $i=0; $i<=$#ARGV; $i++) {
 	elsif ($ARGV[$i]=~/-species/i or $ARGV[$i]=~/-s/i) {
 		$species = $ARGV[$i+1];
 	}
-	elsif ($ARGV[$i]=~/-level/i or $ARGV[$i]=~/-lev/i) {
+	elsif ($ARGV[$i]=~/-level/i or $ARGV[$i]=~/-l/i) {
 		$assemblyLevel = $ARGV[$i+1];
 	}
 	elsif ($ARGV[$i]=~/-components/i or $ARGV[$i]=~/-c/i) {
@@ -180,7 +184,7 @@ for (my $i=0; $i<=$#ARGV; $i++) {
 		$assemblyPrjID = $ARGV[$i+1];
 	}
 	elsif ($ARGV[$i]=~/-log/i) {
-		$outputFile = "output.txt";
+		$outputFile = "logFile.txt";
 	}
 }
 
@@ -193,7 +197,7 @@ if ($^O =~ /MSWin32/) {
 print "Working ...\n"; 
 
 if ($kingdom eq "viruses") { $kingdom = "viral"; }
-if ($outputFile && -e $outputFile) {unlink "$outputFile" or die "fail remove file $!:";}
+if ($outputFile && -e $outputFile) {unlink "$outputFile" or die "failed to remove file $!:";}
 
 if (grep(/^$kingdom$/i, @availableKingdoms)) {
 	
@@ -250,7 +254,7 @@ my ($D_y,$D_m,$D_d, $Dh,$Dm,$Ds) =
       Delta_YMDHMS($start_year,$start_month,$start_day, $start_hour, $start_min, $start_sec,
                    $end_year, $end_month, $end_day, $end_hour,$end_min,$end_sec);
 
-print "End Date: $start_year-$start_month-$start_day, $start_hour:$start_min:$start_sec\n";
+print "End Date: $end_year-$end_month-$end_day, $end_hour:$end_min:$end_sec\n";
 print "Thank you for using getSequenceInfo!\n";
 print "Execution time: $D_y years, $D_m months, $D_d days, $Dh:$Dm:$Ds (hours:minutes:seconds)\n";
 
@@ -258,9 +262,9 @@ print "Execution time: $D_y years, $D_m months, $D_d days, $Dh:$Dm:$Ds (hours:mi
 # display global help document
 sub help_user_simple {
 	my $programme = shift @_;
-	print STDERR  "Usage : perl $programme -k XXX -s \"XXX\"  -r \"XXX\" -date yyyy-mm-dd -get  \n";
-	print "type perl $programme -version or perl $programme -v to get actual version\n";
-	print "type perl $programme -help or perl $programme -h to get full help\n";
+	print STDERR  "Usage : perl $programme [options] \n";
+	print "Type perl $programme -version or perl $programme -v to get the current version\n";
+	print "Type perl $programme -help or perl $programme -h to get full help\n";
 }
 #------------------------------------------------------------------------------
 # display full help document
@@ -303,7 +307,8 @@ sub help_user_advance {
 		-help or -h			displays this help 	
 		-version or -v			displays the current version of the program
 		
-	Options:
+	Options ([XXX] represents the expected value):
+		-directory or -dir [XXX]	allows to indicate the NCBI's nucleotide sequences repository (default: $directory)
 		-get 				allows to obtain a new assembly summary	
 		-k or -kingdom [XXX]		allows to indicate kingdom of the organism (see the examples above)
 		-s or -species [XXX]		allows to indicate the species (must be combined with -k option)
@@ -311,12 +316,12 @@ sub help_user_advance {
 		-assembly_or_project [XXX]	allows to indicate a specific assembly accession or bioproject (must be combined with -k option)
 		-date [XXX]			indicates the release date (with format yyyy-mm-dd) from which sequence information are available
 		-l or -level [XXX]		allows to select a specific assembly level (e.g. "Complete Genome")
-		-o or output [XXX]		allows users to name the output result folder
+		-o or -output [XXX]		allows users to name the output result folder
 		-q or -quantity [XXX]		allows to limit the total number of assemblies to be downloaded
 		-c or -components [XXX]		allows to select specific components of the assembly (e.g. plasmid, chromosome, ...)
 		-ena [XXX] 			allows to download report and fasta file given a ENA sequence ID 
 		-fastq [XXX]			allows to download FASTQ sequences from ENA given a run accession (https://ena-docs.readthedocs.io/en/latest/faq/archive-generated-files.html)
-		
+		-log				allows to write a log file
 HEREDOC
 }
 #------------------------------------------------------------------------------
@@ -400,7 +405,7 @@ sub get_assembly_summary_species {
 		open(LOG, ">>", $outputFile) or die "error open file $!:";
 		print LOG "create kingdom and components repository\n";
 		print LOG "-------------------------------------------\n";
-		close(LOG) or die "error close file $!:";
+		close(LOG) or die "error when closing file $!:";
 	}
 	
 	my %assemblyReportList;
@@ -498,31 +503,32 @@ sub get_assembly_summary_species {
 		
 		if (!keys %assemblyReportList) {
 			print "##################################################################\n";
-			print "Actual requirements are not found or are invalid for the database\n";
-			print "$species $kingdom $assemblyTaxid @levelList\n";
+			print "No results were found for the following query:\n";
+			print "perl $0 @ARGV\n";
 			print "##################################################################\n\n";
 			
 			if ($actualOS =~ /unix/i) { unlink glob "*.dmp *.gz"  or die "for file *.dmp *.gz $!:"; }
 			
 			if (empty_folder($kingdomRep)) { rmdir $kingdomRep or die "fail remove directory $!:"; }
-			rmdir $repositoryAssembly or die "fail remove directory $!:";
-			rmdir $repositoryFNA or die "fail remove directory $!:";
-			rmdir $repositoryGenbank or die "fail remove directory $!:"; 
-			rmdir $repositoryReport or die "fail remove directory $!:"; 
+			rmdir $repositoryAssembly or die "failed to remove directory $!:";
+			rmdir $repositoryFNA or die "failed to remove directory $!:";
+			rmdir $repositoryGenbank or die "failed to remove directory $!:"; 
+			rmdir $repositoryReport or die "failed to remove directory $!:"; 
 			
 			if ($components) {
 				for my  $componentRep (values %componentsRepHash) {
-					rmdir $componentRep or die "fail remove directory $!:"; 
+					rmdir $componentRep or die "failed to remove directory $!:"; 
 				}
 			}
 			
 			if ($outputFile) {
 				open(LOG, ">>", $outputFile) or die "error open file $!:";
-				print LOG "Fail found files for $species $kingdom\n"; 
-				print LOG  "$assemblyTaxid @levelList\n";
-				print LOG "-------------------------------------------\n";
-				print LOG "End of execution\n\n";
-				print LOG "###########################################\n\n";
+				#print LOG "Fail found files for $species $kingdom\n"; 
+				#print LOG  "$assemblyTaxid @levelList\n";
+				print LOG "##################################################################\n";
+				print LOG "No results were found for the following query:\n";
+				print LOG "perl $0 @ARGV\n";
+				print LOG "##################################################################\n\n";
 				close(LOG) or die "error close file $!:";
 			}
 		} 
@@ -530,9 +536,10 @@ sub get_assembly_summary_species {
 			
 			if ($outputFile) {
 				open(LOG, ">>", $outputFile) or die "error open file $!:";
-				print LOG "Found files for $species $kingdom\n"; 
-				print LOG  "$assemblyTaxid @levelList\n";
-				print LOG "-------------------------------------------\n";
+				print LOG "##################################################################\n";
+				print LOG "Results were found for the following query:\n";
+				print LOG "perl $0 @ARGV\n";
+				print LOG "##################################################################\n\n";
 				close(LOG) or die "error close file $!:";
 			}
 			
@@ -568,7 +575,7 @@ sub get_assembly_summary_species {
 				print HEAD $_ . "\t";
 			}
 			
-			print HEAD "Pubmed\tNucle score\tClassification\t"; 
+			print HEAD "Pubmed\tNucleScore\tClassification\t"; 
 			print HEAD "Country\tHost\tIsolation source\tA percent\t";
 			print HEAD "T percent\tG percent\tC percent\tN percent\tGC percent\t";
 			print HEAD "ATGC ratio\tLength\tShape\n";
@@ -867,8 +874,8 @@ sub sequence_ena {
 	if ($outputFile) {
 		open(LOG, ">>", $outputFile) or die "error open file $!:";
 		print LOG "###########################################\n\n";
-		print LOG "Start of execution\n\n";
-		print LOG "Creation $assemblyRep\n";
+		print LOG "ENA sequence download\n";
+		print LOG "Creation of repository: $assemblyRep\n";
 		print LOG "-------------------------------------------\n";
 		close(LOG) or die "error close file $!:";
 	}
@@ -882,7 +889,7 @@ sub sequence_ena {
 	
 	if ($outputFile) {
 		open(LOG, ">>", $outputFile) or die "error open file $!:";
-		print LOG "Download fasta file and report\n";
+		print LOG "Download of ENA fasta and report files for sequence: $sequenceID\n";
 		print LOG "-------------------------------------------\n";
 		close(LOG) or die "error close file $!:";
 	}
@@ -892,9 +899,9 @@ sub sequence_ena {
 	
 	if ($outputFile) {
 		open(LOG, ">>", $outputFile) or die "error open file $!:";
-		print LOG "Move fasta and report to folder\n";
+		print LOG "Move fasta and report files to folder\n";
 		print LOG "-------------------------------------------\n";
-		print LOG "End of execution\n\n";
+		#print LOG "End of execution\n\n";
 		print LOG "###########################################\n\n";
 		close(LOG) or die "error close file $!:";
 	}
@@ -1095,7 +1102,7 @@ sub get_taxonomic_rank_genbank {
 		# ($species,$class,$phylum,$kingdomGB) = @classification;
 	# }
 	
-	my $classification = join(" ", @classification);
+	my $classification = join(",", @classification);
   	
 	return ($classification); 
 }
@@ -1578,7 +1585,7 @@ sub get_summaries {
 	my $downloadSum;
 	my $uncheckSum;
 
-	opendir my $workingDirectory, "./" or die "error open dire $!:";
+	opendir my $workingDirectory, "./" or die "error when opening directory $!:";
 	my @filesList = readdir $workingDirectory; 
 	closedir $workingDirectory;
 	
