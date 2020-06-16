@@ -88,7 +88,7 @@ my $components;  # components of the assembly
 
 my $species = ""; # species name
 
-my $getSummary; # indicates if a new assembly summary is required
+my $getSummaries; # indicates if a new assembly summary is required
 
 my $assemblyLevel = "Complete Genome,Chromosome,Scaffold,Contig"; # assembly level of the genome
 
@@ -153,8 +153,8 @@ for (my $i=0; $i<=$#ARGV; $i++) {
     elsif ($ARGV[$i]=~/-date/i) {
     	$releaseDate = $ARGV[$i+1];
     }
-	elsif ($ARGV[$i]=~/-getSummary/i or $ARGV[$i]=~/-get/i) {
-    	$getSummary = 1;
+	elsif ($ARGV[$i]=~/-getSummaries/i or $ARGV[$i]=~/-get/i) {
+    	$getSummaries = $ARGV[$i+1];
     }
 	elsif ($ARGV[$i]=~/-species/i or $ARGV[$i]=~/-s/i) {
 		$species = $ARGV[$i+1];
@@ -210,7 +210,7 @@ if (grep(/^$kingdom$/i, @availableKingdoms)) {
 		
 		foreach my $actualSpecies (@speciesList) {
 			get_assembly_summary_species( $quantity, $releaseDate, $directory,$kingdom,$actualSpecies,
-			\@levelList,  $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile, $getSummary, $components);
+			\@levelList,  $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile, $getSummaries, $components);
 		}
 	}
 	elsif ($assemblyTaxid ne "") {
@@ -218,12 +218,12 @@ if (grep(/^$kingdom$/i, @availableKingdoms)) {
 		
 		foreach my $actualID (@taxidList) {
 			get_assembly_summary_species($quantity, $releaseDate, $directory,$kingdom,$species, 
-			\@levelList, $fldSep, $actualOS, $mainFolder, $actualID, $outputFile, $getSummary, $components);
+			\@levelList, $fldSep, $actualOS, $mainFolder, $actualID, $outputFile, $getSummaries, $components);
 		}
 	} 
 	else {
 		get_assembly_summary_species($quantity, $releaseDate, $directory,$kingdom,$species,
-		\@levelList, $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile, $getSummary, $components);
+		\@levelList, $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile, $getSummaries, $components);
 	}	
 }
 
@@ -334,10 +334,10 @@ sub program_version {
 #------------------------------------------------------------------------------
 sub get_assembly_summary_species {
 	my ($quantity, $releaseDate, $directory, $kingdom, $species, $levelList, 
-	$fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile, $getSummary, $components) = @_;
+	$fldSep, $actualOS, $mainFolder, $assemblyTaxid, $outputFile, $getSummaries, $components) = @_;
 	
 	# assembly_summary.txt file from NCBI FTP site
-	my $assemblySummary = get_summaries($ftpServor, $kingdom, $getSummary);
+	my $assemblySummary = get_summaries($ftpServor, $kingdom, $getSummaries, $directory);
 	#lineage folder
 	# my $lineage_file = "/pub/taxonomy/new_taxdump/new_taxdump.tar.gz";
 	
@@ -1578,49 +1578,82 @@ sub isModuleInstalled {
 #------------------------------------------------------------------------------
 # get summaries 
 sub get_summaries {
-	my ($ftpServor, $kingdomList, $getSummary) = @_;
-	
-	my $summaryCumulate;
+	my ($ftpServor, $kingdom, $getSummaries, $directory) = @_;
+	my $newFileName = $directory . "_" . $kingdom . "_assembly_summary.txt";
 	my $assemblySummary = "assembly_summary.txt";
+	my $fileSummary = $newFileName;
 	my $downloadSum;
 	my $uncheckSum;
+	my $actualSummary;
 
-	opendir my $workingDirectory, "./" or die "error when opening directory $!:";
+	opendir my $workingDirectory, "./" or die "error open dir $!:";
 	my @filesList = readdir $workingDirectory; 
 	closedir $workingDirectory;
 	
 	my $found = grep{/$assemblySummary/i} @filesList;
 	if ($found  == 0) { $downloadSum = 1; } 
 	
-	
 	for my $file (@filesList) {
 		if ($file =~ /assembly_summary.txt/i) {
-			$summaryCumulate = $file;
-			for my $kingdom (split /,/, $kingdomList) {
-				if ($file !~ /$kingdom/i) {
-					$uncheckSum = 1;
-				}
-			}			
+			$actualSummary = $file;
+			$fileSummary = $actualSummary;
+			if ($getSummaries) {
+				for my $kingdomSummary (split /,/, $getSummaries) {
+					if ($file !~ /$kingdomSummary/i || $file !~ /$directory/i) {
+						$uncheckSum = 1; 
+					}
+				}	
+			} elsif ($file !~ /$kingdom/i || $file !~ /$directory/i) {
+				$uncheckSum = 1; 
+			}	
 		} 
 	}
 	
-	if ($uncheckSum || $downloadSum || $getSummary) {
-		if ($uncheckSum) { 
-			unlink $summaryCumulate or die "error remove file $!:";
-			$summaryCumulate = "";
-		}
+	if ($uncheckSum || $downloadSum) {
+		my $downloadKingdom = $kingdom;
+		my @kingdomAddList;
+		my $rename;
 		
-		for my $kingdom (split /,/, $kingdomList) {
-			$summaryCumulate .= $kingdom . "_";
-		}
+		if (!$getSummaries) { push @kingdomAddList, $kingdom; }
 		
-		$summaryCumulate .= "assembly_summary.txt"; 
+		if ($getSummaries) {
+			for my $kingdomSummary (split /,/, $getSummaries) {
+				if ($actualSummary && $actualSummary !~ /$kingdomSummary/i) {
+					push @kingdomAddList, $kingdomSummary;
+				}
+				elsif (!$actualSummary) {
+					push @kingdomAddList, $kingdomSummary;
+				}
+				elsif ($actualSummary && $actualSummary !~ /$directory/i) {
+					push @kingdomAddList, $kingdomSummary;
+				}
+			}
+			$downloadKingdom = $getSummaries;
+			my $kingdomAdd = join("_", @kingdomAddList);
+			$fileSummary = $directory . "_" . $kingdomAdd . "_" . "assembly_summary.txt";
+		}		
+
+		if ($uncheckSum) {
+			if ($actualSummary =~ /$directory/i) { 
+				if ($actualSummary =~ /genbank_(.*)_assembly_s/i || $actualSummary =~ /refseq_(.*)_assembly_s/i) {
+					push @kingdomAddList, $1;
+				}
+				my $kingdomAdd = join("_", @kingdomAddList);
+				$newFileName = $directory . "_" . $kingdomAdd . "_" . "assembly_summary.txt";
+				$fileSummary = $actualSummary;
+				$rename = 1;
+			} elsif ($actualSummary) {
+				unlink $actualSummary or die "error remove file $!:";
+				my $kingdomAdd = join("_", @kingdomAddList);
+				$fileSummary = $directory . "_" . $kingdomAdd . "_" . "assembly_summary.txt";
+			}
+		}	
 		
-		for my $kingdom (split /,/, $kingdomList) {
-			my $assemblySummaryLink = "/genomes/genbank/$kingdom/assembly_summary.txt";
+		foreach my $kingdomSummary (@kingdomAddList) {
+			my $assemblySummaryLink = "/genomes/$directory/$kingdomSummary/assembly_summary.txt";
 			download_file($ftpServor, $assemblySummaryLink);	
 			open (SUM, "<", $assemblySummary) or die "error open file $!:";
-			open (CUMUL, ">>", $summaryCumulate) or die "error open file $:!";
+			open (CUMUL, ">>", $fileSummary) or die "error open file $:!";
 			while (<SUM>) {
 				print CUMUL $_;
 			}
@@ -1628,7 +1661,10 @@ sub get_summaries {
 			close (SUM) or die "error close file $!:";
 			unlink $assemblySummary or die "error remove file $!:"; 
 		}
+		if ($rename) {
+			rename $fileSummary, $newFileName;
+			$fileSummary = $newFileName;
+		}		
 	}
-	
-	return $summaryCumulate;
+	return $fileSummary;
 }
