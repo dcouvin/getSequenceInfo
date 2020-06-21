@@ -35,7 +35,7 @@ perl getSequenceInfo.pl -h
 ```
 Help message:
 ```bash
-Name: 
+	Name: 
 		getSequenceInfo.pl
 	
 	Synopsis:
@@ -44,12 +44,12 @@ Name:
 	Usage:
 	  perl getSequenceInfo.pl [options]
 	  examples: 
-	     perl $0 -k bacteria -s "Helicobacter pylori" -l "Complete Genome" -date 2019-06-01 
-	     perl $0 -k viruses -n 5 -date 2019-06-01
-	     perl $0 -k "bacteria" -taxid 9,24 -n 10 -c plasmid -dir genbank -o Results
-	     perl $0 -ena BN000065
-	     perl $0 -fastq ERR818002
-	     perl $0 -fastq ERR818002,ERR818004
+	     perl getSequenceInfo.pl -k bacteria -s "Helicobacter pylori" -l "Complete Genome" -date 2019-06-01 
+	     perl getSequenceInfo.pl -k viruses -n 5 -date 2019-06-01
+	     perl getSequenceInfo.pl -k "bacteria" -taxid 9,24 -n 10 -c plasmid -dir genbank -o Results
+	     perl getSequenceInfo.pl -ena BN000065
+	     perl getSequenceInfo.pl -fastq ERR818002
+	     perl getSequenceInfo.pl -fastq ERR818002,ERR818004
 						 	
 	Kingdoms:
 		archaea
@@ -73,7 +73,7 @@ Name:
 		-version or -v			displays the current version of the program
 		
 	Options ([XXX] represents the expected value):
-		-directory or -dir [XXX]	allows to indicate the NCBI's nucleotide sequences repository (default: $directory)
+		-directory or -dir [XXX]	allows to indicate the NCBIs nucleotide sequences repository (default: $directory)
 		-get or -getSummaries [XXX]	allows to obtain a new assembly summary files in function of given kingdoms (bacteria,fungi,protozoa...)	
 		-k or -kingdom [XXX]		allows to indicate kingdom of the organism (see the examples above)
 		-s or -species [XXX]		allows to indicate the species (must be combined with -k option)
