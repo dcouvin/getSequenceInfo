@@ -27,9 +27,8 @@ print "## ---> Welcome to $0 (version $version)!\n";
 print "## Start Date (yyyy-mm-dd, hh:min:sec): $start_year-$start_month-$start_day, $start_hour:$start_min:$start_sec\n";
 print "##################################################################\n\n";
 
-
+#BioPerl has been removed from the @modules
 my @modules = qw(
-	BioPerl
 	Archive::Tar
 	Bio::SeqIO
 	Bio::Species
@@ -165,7 +164,7 @@ for (my $i=0; $i<=$#ARGV; $i++) {
 	elsif ($ARGV[$i]=~/-components/i or $ARGV[$i]=~/-c/i) {
 		$components = $ARGV[$i+1];
 	}
-	elsif ($ARGV[$i]=~/-quantity/i or $ARGV[$i]=~/-q/i) {
+	elsif ($ARGV[$i]=~/-quantity/i or $ARGV[$i]=~/-q/i or $ARGV[$i]=~/-number/i or $ARGV[$i]=~/-n/i) {
 		$quantity = int($ARGV[$i+1]);
 	}
 	elsif ($ARGV[$i]=~/-ena/i) {
@@ -280,11 +279,12 @@ sub help_user_advance {
 	Usage:
 	  perl $0 [options]
 	  examples: 
-	     perl $0 -k bacteria -s "Helicobacter pylori" -l "Complete Genome" -date 2019-06-01 -get 
-	     perl $0 -k viruses -q 5 -l "Complete Genome" -date 2019-06-01 -get
-	     perl $0 -k "bacteria" -taxid 9,24 -get -q 10 -c plasmid -dir genbank -o Results
+	     perl $0 -k bacteria -s "Helicobacter pylori" -l "Complete Genome" -date 2019-06-01 
+	     perl $0 -k viruses -n 5 -date 2019-06-01
+	     perl $0 -k "bacteria" -taxid 9,24 -n 10 -c plasmid -dir genbank -o Results
 	     perl $0 -ena BN000065
 	     perl $0 -fastq ERR818002
+	     perl $0 -fastq ERR818002,ERR818004
 						 	
 	Kingdoms:
 		archaea
@@ -309,7 +309,7 @@ sub help_user_advance {
 		
 	Options ([XXX] represents the expected value):
 		-directory or -dir [XXX]	allows to indicate the NCBI's nucleotide sequences repository (default: $directory)
-		-get 				allows to obtain a new assembly summary	
+		-get or -getSummaries [XXX]	allows to obtain a new assembly summary files in function of given kingdoms (bacteria,fungi,protozoa...)	
 		-k or -kingdom [XXX]		allows to indicate kingdom of the organism (see the examples above)
 		-s or -species [XXX]		allows to indicate the species (must be combined with -k option)
 		-taxid [XXX]			allows to indicate a specific taxid (must be combined with -k option)
@@ -317,11 +317,11 @@ sub help_user_advance {
 		-date [XXX]			indicates the release date (with format yyyy-mm-dd) from which sequence information are available
 		-l or -level [XXX]		allows to select a specific assembly level (e.g. "Complete Genome")
 		-o or -output [XXX]		allows users to name the output result folder
-		-q or -quantity [XXX]		allows to limit the total number of assemblies to be downloaded
+		-n or -number [XXX]		allows to limit the total number of assemblies to be downloaded
 		-c or -components [XXX]		allows to select specific components of the assembly (e.g. plasmid, chromosome, ...)
 		-ena [XXX] 			allows to download report and fasta file given a ENA sequence ID 
 		-fastq [XXX]			allows to download FASTQ sequences from ENA given a run accession (https://ena-docs.readthedocs.io/en/latest/faq/archive-generated-files.html)
-		-log				allows to write a log file
+		-log				allows to create a log file
 HEREDOC
 }
 #------------------------------------------------------------------------------
