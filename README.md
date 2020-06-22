@@ -1,4 +1,5 @@
-# getSequenceInfo
+# ![Logo getSequenceInfo](/logo_getSequenceInfo.png)
+
 A simple [Perl](https://en.wikipedia.org/wiki/Perl) script allowing to get genome sequences from GenBank, RefSeq or ENA sequence repositories.
 
 # Requirements
