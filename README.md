@@ -17,6 +17,7 @@ bash install/installer_Unix.sh
 ```
 
 ## Windows
+Users can also install the tool by running the installer_Windows.bat file (double-click)
 ```bash
 install\installer_Windows.bat
 ```
@@ -73,7 +74,7 @@ Help message:
 		-version or -v			displays the current version of the program
 		
 	Options ([XXX] represents the expected value):
-		-directory or -dir [XXX]	allows to indicate the NCBIs nucleotide sequences repository (default: $directory)
+		-directory or -dir [XXX]	allows to indicate the NCBIs nucleotide sequences repository (default: genbank)
 		-get or -getSummaries [XXX]	allows to obtain a new assembly summary files in function of given kingdoms (bacteria,fungi,protozoa...)	
 		-k or -kingdom [XXX]		allows to indicate kingdom of the organism (see the examples above)
 		-s or -species [XXX]		allows to indicate the species (must be combined with -k option)
