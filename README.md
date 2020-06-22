@@ -36,7 +36,7 @@ We can type the following command to display the help message:
 perl getSequenceInfo.pl -h
 ```
 Help message:
-```perl
+```
 	Name: 
 		getSequenceInfo.pl
 	
