@@ -61,7 +61,7 @@ $frame1 = $mw->Label(
 ## left frame side
 #database where tto download sequences 
 $frame2->Label(
-	-text => 'directory where to download sequences : ',
+	-text => 'NCBI sequence repository: ',
 	-background => 'white', 
 )->pack();
 
@@ -81,7 +81,7 @@ foreach my $directory (@directoryList) {
 
 #  label and listbox for kingdom
 $frame2->Label(
-	-text => 'select the name of the kingdom : ',
+	-text => 'Select the Kingdom: ',
 	-background => 'white',
 )->pack();
 
@@ -102,7 +102,7 @@ foreach my $subKingdom(@kingdomList) {
 
 #label and entry for species
 $frame2->Label( 
-	-text       => 'name of the species to search : ', 
+	-text       => 'Species: ', 
 	-background => 'white', 
 )->pack(); 
 
@@ -112,7 +112,7 @@ $frame2 ->Entry(
 
 #label and entry for date
 $frame2->Label( 
-	-text       => 'assembly from this date (yyyy-mm-dd) : ', 
+	-text       => 'Assemblies from this date (yyyy-mm-dd): ', 
 	-background => 'white', 
 )->pack(); 
 
@@ -122,7 +122,7 @@ $frame2->Entry(
 
 #label and listbox for summary
 $frame2->Label( 
-	-text       => 'obtain last updates from the servor : ', 
+	-text       => 'Get the latest version of the summary: ', 
 	-background => 'white',
 )->pack(); 
 
@@ -137,7 +137,7 @@ $frame2->Checkbutton(
 
 #label and entry for taxid
 $frame2->Label( 
-	-text       => 'taxid of the species to search : ', 
+	-text       => 'NCBI Taxonomy ID (taxID): ', 
 	-background => 'white',
 )->pack();
 
@@ -148,7 +148,7 @@ $frame2->Entry(
 
 # label and entry to rename the output
 $frame2->Label( 
-	-text       => 'name of the folder : ', 
+	-text       => 'Output folder name: ', 
 	-background => 'white', 
 )->pack(); 
 
@@ -160,7 +160,7 @@ $frame2->Entry(
 # #right frame side
 #label and entry for representation
 $frame3->Label( 
-	-text       => 'assembly level   : ', 
+	-text       => 'Assembly level   : ', 
 	-background => 'white',
 )->pack(); 
 
@@ -180,7 +180,7 @@ foreach my $level (@levelList) {
 
 # label and entry for componenents
 $frame3->Label( 
-	-text       => 'component : ',
+	-text       => 'Component: ',
 	-background => 'white', 
 )->pack(); 
 
@@ -210,7 +210,7 @@ $frame3->Entry(
 
 # label and entry for quantity
 $frame3->Label( 
-	-text       => 'quantity of assembly : ', 
+	-text       => 'Number of assemblies (limit): ', 
 	-background => 'white', 
 )->pack(); 
 
@@ -220,7 +220,7 @@ $frame3->Entry(
 
 # label and entry for quantity
 $frame3->Label( 
-	-text       => 'assembly or project ID : ', 
+	-text       => 'Assembly or Project ID: ', 
 	-background => 'white', 
 )->pack(); 
 
@@ -229,7 +229,7 @@ $frame3->Entry(
 )->pack();
 
 $frame3->Label( 
-	-text       => 'obtain tracking output file : ', 
+	-text       => 'Get a log file: ', 
 	-background => 'white',
 )->pack(); 
 
@@ -250,7 +250,7 @@ $frame5->Label(
 
 # label and entry for ena
 $frame5->Label( 
-	-text       => 'download sequences (ena ID)  : ', 
+	-text       => 'ENA sequence ID (enaID): ', 
 	-background => 'white', 
 )->pack(); 
 
@@ -261,7 +261,7 @@ $frame5->Entry(
 
 # label and entry to rename the output
 $frame5->Label( 
-	-text       => 'run accession id for fastq : ', 
+	-text       => 'FASTQ run accession: ', 
 	-background => 'white', 
 )->pack(); 
 
@@ -275,7 +275,7 @@ $frame5->Entry(
 ## bottom frame
 # start search button
 $frame4->Button( 
-	-text    => 'start search', 
+	-text    => 'Search', 
 	-command => \&search, 
 )->pack();
 
