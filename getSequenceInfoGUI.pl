@@ -122,7 +122,7 @@ $frame2->Entry(
 
 #label and listbox for summary
 $frame2->Label( 
-	-text       => 'Get the latest version of the summary: ', 
+	-text       => 'Get the latest assembly_summary: ', 
 	-background => 'white',
 )->pack(); 
 
