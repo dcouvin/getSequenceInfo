@@ -81,7 +81,7 @@ foreach my $directory (@directoryList) {
 
 #  label and listbox for kingdom
 $frame2->Label(
-	-text => 'Select the Kingdom: ',
+	-text => 'Select the kingdom: ',
 	-background => 'white',
 )->pack();
 
