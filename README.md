@@ -1,6 +1,6 @@
 # ![Logo getSequenceInfo](/logo_getSequenceInfo.png)
 
-A simple [Perl](https://en.wikipedia.org/wiki/Perl) script allowing to get genome sequences from GenBank, RefSeq or ENA sequence repositories.
+A simple [Perl](https://en.wikipedia.org/wiki/Perl) script allowing to get sequence information from GenBank, RefSeq or ENA sequence repositories.
 
 # Requirements
 Perl (version 5.26 or greater) must be available in your system to run getSequenceInfo. If your Operating System (OS) is Windows, you can get Perl by installing [Strawberry Perl](http://strawberryperl.com/). If necessary, please see information on [how to launch](https://www.digitalcitizen.life/7-ways-launch-command-prompt-windows-7-windows-8) or [how to use](https://www.digitalcitizen.life/command-prompt-how-use-basic-commands) the Command Prompt in Windows.
