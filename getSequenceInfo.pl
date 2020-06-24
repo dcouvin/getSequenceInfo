@@ -436,7 +436,7 @@ sub get_assembly_summary_species {
 						$regex = qr/$searchPattern/i;
 					}
 					elsif ($assemblyTaxid !~ /^$/) { 
-						$indexInfo = 6; 
+						$indexInfo = 5; 
 						$searchPattern = $assemblyTaxid;
 						$regex = qr/^$searchPattern$/i;
 					}

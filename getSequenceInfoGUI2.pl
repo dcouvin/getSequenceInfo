@@ -328,7 +328,7 @@ sub search {
 		
 		foreach my $option (@optionCharList) {
 			if (defined  $optionHash{$option}) { $command .= " $option \"$optionHash{$option}\""; }
-			$i += 10;
+			$i += 8;
 			$progress->value($i); 
 			$mw->update();
 			sleep 1;
@@ -339,10 +339,23 @@ sub search {
 		print "$command\n";
 		system("$command");
 		
+		undef $kingdom;
+		undef $species;
+		undef $taxID;
+		undef $quantity;
+		undef $levelAssembly;
 		undef $components;
+		undef $output;
+		undef $directoryNcbi;
+		undef $date;
+		undef $getSummaries;
+		# foreach my $option (values %optionHash) {
+			# undef $option;
+		# }
 		undef $outputFile;
+
 		
-		$i += 10;
+		$i += 20;
 		$progress->value($i); 
 		$mw->update();
 		sleep 1;
