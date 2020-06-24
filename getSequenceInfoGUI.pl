@@ -47,7 +47,7 @@ my $frame3 = $mw->Frame(-background => 'white');
 my $frame4 = $mw->Frame(-background => 'white');
 my $frame5 = $frame3->Frame(-background => 'white', -borderwidth => 5, -relief => 'groove'); 
 
-my $homeMessage = "Thanks for using getSequenceInfo tool!\n\n"; 
+my $homeMessage = "Thank you for using getSequenceInfo!\n\n"; 
 
 #Affichage d'un texte 
 $frame1 = $mw->Label( 
