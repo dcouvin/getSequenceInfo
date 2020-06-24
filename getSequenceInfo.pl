@@ -1541,7 +1541,7 @@ sub download_assembly_or_project {
 		$assemblySummary = "assembly_summary_genbank.txt";
 	}
 	
-	my $assemblySummaryPath = "/genomes/ASSEMBLY_REPORTS/".$assemblySummary; 
+	my $assemblySummaryPath = "/genomes/ASSEMBLY_REPORTS/" . $assemblySummary; 
 	download_file($ftpServor, $assemblySummaryPath);
 	
 	if ($outputFile) {
@@ -1561,6 +1561,8 @@ sub download_assembly_or_project {
 		print LOG "###########################################\n\n";
 		close(LOG) or die "error close file $!:";
 	}
+	
+	unlink $assemblySummary or die "error remove file $!:"; 
 }
 #------------------------------------------------------------------------------
 sub isModuleInstalled {
@@ -1634,12 +1636,13 @@ sub get_summaries {
 		}		
 
 		if ($uncheckSum) {
-			if ($actualSummary =~ /$directory/i) { 
+			if ($actualSummary =~ /$directory/i) {
+				my $addKingdom = "";				
 				if ($actualSummary =~ /genbank_(.*)_assembly_s/i || $actualSummary =~ /refseq_(.*)_assembly_s/i) {
-					push @kingdomAddList, $1;
+					$addKingdom = $1;
 				}
 				my $kingdomAdd = join("_", @kingdomAddList);
-				$newFileName = $directory . "_" . $kingdomAdd . "_" . "assembly_summary.txt";
+				$newFileName = $directory . "_" . $kingdomAdd . "_" . $addKingdom ."_". "assembly_summary.txt";
 				$fileSummary = $actualSummary;
 				$rename = 1;
 			} elsif ($actualSummary) {
