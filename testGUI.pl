@@ -53,7 +53,7 @@ my $secondSubFrame2 = $frame2->Frame(-background => 'white');
 my $frame3 = $mw->Labelframe(-background => 'white', -text => 'ENA');
 my $frame4 = $mw->Labelframe(-background => 'white');
 
-my $homeMessage = "Thanks for using getSequenceInfo tool\n\n"; 
+my $homeMessage = "Thank you for using getSequenceInfo!\n\n"; 
 
 #Affichage d'un texte 
 $frame1 = $mw->Label( 
@@ -64,7 +64,7 @@ $frame1 = $mw->Label(
 
 ##subframe1
 $directoryFrame->Label(
-	-text => 'directory : ',
+	-text => 'Sequence repository: ',
 	-background => 'white', 
 )->pack(-expand => 1, -fill => 'x');
 
@@ -80,7 +80,7 @@ foreach my $directory (@directoryList) {
 
 #label and entry for representation
 $levelFrame->Label( 
-	-text       => 'assembly level   : ', 
+	-text       => 'Assembly level: ', 
 	-background => 'white',
 )->pack(-expand => 1, -fill => 'x'); 
 
@@ -96,7 +96,7 @@ foreach my $level (@levelList) {
 
 #  label and listbox for kingdom
 $kingdomFrame->Label(
-	-text => 'Kingdom : ',
+	-text => 'Select the kingdom: ',
 	-background => 'white',
 )->pack(-expand => 1, -fill => 'x');
 
@@ -111,7 +111,7 @@ $lst->insert('end', @kingdomList);
 
 # label and entry for componenents
 $componentFrame->Label( 
-	-text       => 'component : ',
+	-text       => 'Component: ',
 	-background => 'white', 
 )->pack(-expand => 1, -fill => 'x'); 
 
@@ -140,49 +140,49 @@ $componentFrame->Entry(
 ## subframe2
 # label and entry for species
 $secondSubFrame2->Label( 
-	-text       => 'Species : ', 
+	-text       => 'Species: ', 
 	-background => 'white', 
 )->grid($secondSubFrame2->Entry(-textvariable => \$species),
 -sticky => 'nsew');
 
 #label and entry for date
 $secondSubFrame2->Label( 
-	-text       => 'Assembly date (yyyy-mm-dd) : ', 
+	-text       => 'Assemblies from this date (yyyy-mm-dd): ', 
 	-background => 'white', 
 )->grid($secondSubFrame2->Entry(-textvariable => \$date),
 -sticky=> 'nsew'); 
 
 #label and entry for taxid
 $secondSubFrame2->Label( 
-	-text       => 'Taxid : ', 
+	-text       => 'Taxonomy ID (taxID): ', 
 	-background => 'white',
 )->grid($secondSubFrame2->Entry(-textvariable => \$taxID),
 -sticky =>'nsew');  
 
 # label and entry to rename the output
 $secondSubFrame2->Label( 
-	-text       => 'Name of the folder : ', 
+	-text       => 'Output folder name: ', 
 	-background => 'white', 
 )->grid($secondSubFrame2->Entry(-textvariable => \$output),
 -sticky => 'nsew'); 
 
 # label and entry for quantity
 $secondSubFrame2->Label( 
-	-text       => 'quantity of assembly : ', 
+	-text       => 'Number of assemblies (limit): ', 
 	-background => 'white', 
 )->grid($secondSubFrame2->Entry(-textvariable => \$quantity),
 -sticky => 'nsew');  
 
 # label and entry for quantity
 $secondSubFrame2->Label( 
-	-text       => 'assembly or project ID : ', 
+	-text       => 'Assembly or Project ID: ', 
 	-background => 'white', 
 )->grid($secondSubFrame2->Entry(-textvariable => \$assemblyPrjID),
 -sticky => 'nsew');
 
 # label and entry for database
 $secondSubFrame2->Label( 
-	-text       => 'Database to save : ', 
+	-text       => 'Get the latest assembly_summary for kingdoms: ', 
 	-background => 'white', 
 )->grid($secondSubFrame2->Entry(-textvariable => \$getSummaries),
 -sticky => 'nsew');
@@ -191,14 +191,14 @@ $secondSubFrame2->Label(
 ## ENA frame
 # label and entry for ena
 $frame3->Label( 
-	-text       => 'download sequences (ena ID)  : ', 
+	-text       => 'ENA sequence ID (enaID): ', 
 	-background => 'white', 
 )->grid($frame3->Entry(-textvariable => \$enaID),
 -sticky => 'nsew'); 
 
 
 $frame3->Label( 
-	-text       => 'run accession id for fastq : ', 
+	-text       => 'FASTQ run accession: ', 
 	-background => 'white', 
  )->grid( $frame3->Entry(-textvariable => \$fastqID),
  -sticky => 'nsew'); 
