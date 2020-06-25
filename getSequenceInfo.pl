@@ -309,7 +309,7 @@ sub help_user_advance {
 		
 	Options ([XXX] represents the expected value):
 		-directory or -dir [XXX]	allows to indicate the NCBI's nucleotide sequences repository (default: $directory)
-		-get or -getSummaries [XXX]	allows to obtain a new assembly summary files in function of given kingdoms (bacteria,fungi,protozoa...)	
+		-get or -getSummaries [XXX]	allows to obtain a new assembly summary file in function of given kingdoms (bacteria,fungi,protozoa...)	
 		-k or -kingdom [XXX]		allows to indicate kingdom of the organism (see the examples above)
 		-s or -species [XXX]		allows to indicate the species (must be combined with -k option)
 		-taxid [XXX]			allows to indicate a specific taxid (must be combined with -k option)
@@ -1268,7 +1268,7 @@ sub shift_data_variance {
 sub nucle_score {
 	my ($variance, $gcPercent, $atgcRatio, $length) = @_;
 	
-	return (($variance * $gcPercent * $atgcRatio) / $length);
+	return log2(($variance * $gcPercent * $atgcRatio) / sqrt($length));
 }
 #------------------------------------------------------------------------------
 sub log2 {
