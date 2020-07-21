@@ -4,15 +4,15 @@
 use warnings; 
 use strict; 
 use Tk;
-use Tk::ProgressBar; 
+use Tk::ProgressBar;
+use Tk::Labelframe;
 use utf8;
- 
 
 # variable declaration
 my $kingdom;
 my $species;
 my $date;
-my $getSummary;
+my $getSummaries;
 my $levelAssembly;
 my $component;
 my $quantity;
@@ -30,22 +30,28 @@ my $components;
 my $assemblyPrjID;
 my $outputFile;
 
+
 # window creation 
 my $mw = new MainWindow( 
 	-title      => 'getSequenceInfo', 
 	-background => 'white', 
-); 
-
-# Taille de ma fenêtre 
-# $mw->minsize(600,620); 
-  
+);
+ 
+ $mw->minsize(550, 550); 
 
 # a Frame you'll never see
-my $frame1 = $mw->Frame(-background => 'white');
-my $frame2 = $mw->Frame(-background => 'white');
-my $frame3 = $mw->Frame(-background => 'white'); 
-my $frame4 = $mw->Frame(-background => 'white');
-my $frame5 = $frame3->Frame(-background => 'white', -borderwidth => 5, -relief => 'groove'); 
+my $frame1 = $mw->Labelframe(-background => 'white');
+my $frame2 = $mw->Labelframe(-background => 'white',  -text => 'NCBI', -relief => 'groove', -borderwidth => '2');
+my $firstSubFrame2 = $frame2->Frame(-background => 'white');
+my $subSubFrame1 = $firstSubFrame2->Frame(-background => 'white');
+my $subSubFrame2 = $firstSubFrame2->Frame(-background => 'white');
+my $directoryFrame = $subSubFrame1->Frame(-background => 'white', -borderwidth => '5');
+my $kingdomFrame = $subSubFrame2->Frame(-background => 'white', -borderwidth => '5');
+my $levelFrame = $subSubFrame2->Frame(-background => 'white',  -borderwidth => '5');
+my $componentFrame = $subSubFrame1->Frame(-background => 'white', -borderwidth => '5');
+my $secondSubFrame2 = $frame2->Frame(-background => 'white');
+my $frame3 = $mw->Labelframe(-background => 'white', -text => 'ENA');
+my $frame4 = $mw->Labelframe(-background => 'white');
 
 my $homeMessage = "Thank you for using getSequenceInfo!\n\n"; 
 
@@ -56,134 +62,58 @@ $frame1 = $mw->Label(
 )->pack();
 
 
-
-
-## left frame side
-#database where tto download sequences 
-$frame2->Label(
-	-text => 'NCBI sequence repository: ',
+##subframe1
+$directoryFrame->Label(
+	-text => 'Sequence repository: ',
 	-background => 'white', 
-)->pack();
-
+)->pack(-expand => 1, -fill => 'x');
 
 my @directoryList = qw/refseq genbank/;
 
 foreach my $directory (@directoryList) {
-	$frame2->Radiobutton(
+	$directoryFrame->Radiobutton(
 		-text => $directory,
 		-value => $directory,
 		-variable => \$directoryNcbi,
-		-indicatoron => 0,
-		-width => 20,
-	)->pack();
+	)->pack(-expand => 1, -fill => 'x');
 }
 
-
-#  label and listbox for kingdom
-$frame2->Label(
-	-text => 'Select the kingdom: ',
-	-background => 'white',
-)->pack();
-
-
-my @kingdomList = qw/archaea bacteria fungi invertebrate plant protozoa 
-									vertebrate_mammalian vertebrate_other viral/;
-
-
-foreach my $subKingdom(@kingdomList) {
-	 $frame2->Radiobutton(
-		-text => $subKingdom,
-		-value => $subKingdom,
-		-variable => \$kingdom,
-		-indicatoron => 0,
-		-width => 20,
-	)->pack();
-}
-
-#label and entry for species
-$frame2->Label( 
-	-text       => 'Species: ', 
-	-background => 'white', 
-)->pack(); 
-
-$frame2 ->Entry(
-	-textvariable => \$species,
-)->pack();
-
-#label and entry for date
-$frame2->Label( 
-	-text       => 'Assemblies from this date (yyyy-mm-dd): ', 
-	-background => 'white', 
-)->pack(); 
-
-$frame2->Entry(
-	-textvariable => \$date,
-)->pack(); 
-
-#label and listbox for summary
-$frame2->Label( 
-	-text       => 'Get the latest assembly_summary: ', 
-	-background => 'white',
-)->pack(); 
-
-$frame2->Checkbutton(
-	-text => 'yes',
-	-onvalue => 1,
-	-offvalue => 0,
-	-relief => 'raised',
-	-width => 17,
-	-variable => \$getSummary,
-)->pack();
-
-#label and entry for taxid
-$frame2->Label( 
-	-text       => 'NCBI Taxonomy ID (taxID): ', 
-	-background => 'white',
-)->pack();
-
-$frame2->Entry(
-	-textvariable => \$taxID,
-)->pack();  
-
-
-# label and entry to rename the output
-$frame2->Label( 
-	-text       => 'Output folder name: ', 
-	-background => 'white', 
-)->pack(); 
-
-$frame2->Entry(
-	-textvariable => \$output,
-)->pack(); 
-
-
-# #right frame side
 #label and entry for representation
-$frame3->Label( 
-	-text       => 'Assembly level   : ', 
+$levelFrame->Label( 
+	-text       => 'Assembly level: ', 
 	-background => 'white',
-)->pack(); 
-
+)->pack(-expand => 1, -fill => 'x'); 
 
 my @levelList = ("Complete Genome", "All"); 
 
-
 foreach my $level (@levelList) {
-	$frame3->Radiobutton(
+	$levelFrame->Radiobutton(
 		-text => $level,
 		-value => $level,
 		-variable => \$levelAssembly,
-		-width => 20,
-		-indicatoron => 0,
-	)->pack();
+	)->pack(-expand => 1, -fill => 'x');
 }
 
+#  label and listbox for kingdom
+$kingdomFrame->Label(
+	-text => 'Select the kingdom: ',
+	-background => 'white',
+)->pack(-expand => 1, -fill => 'x');
+
+
+my $lst = $kingdomFrame->Scrolled("Listbox", -scrollbars => 'oe')->pack(-expand => 1, -fill => 'x'); 
+$lst->configure(-height => 5);
+
+my @kingdomList = qw/archaea bacteria fungi invertebrate plant protozoa 
+	vertebrate_mammalian vertebrate_other viral/;
+	
+$lst->insert('end', @kingdomList);
+
 # label and entry for componenents
-$frame3->Label( 
+$componentFrame->Label( 
 	-text       => 'Component: ',
 	-background => 'white', 
-)->pack(); 
-
+)->pack(-expand => 1, -fill => 'x'); 
 
 my %checkComponentHash = (
 	chromosome => $checkChromosome,
@@ -192,111 +122,133 @@ my %checkComponentHash = (
 	scaffold => $checkScaffold,
 );
 
-
 foreach my $component (keys %checkComponentHash) {
-	$frame3->Checkbutton(
+	$componentFrame->Checkbutton(
 	-text => $component,
 	-onvalue => 1,
 	-offvalue => 0,
 	-relief => 'raised',
 	-width => 17,
 	-variable => \$checkComponentHash{$component},
-	)->pack(); 
+	)->pack(-expand => 1, -fill => 'x'); 
 }
 
-$frame3->Entry( 
+$componentFrame->Entry( 
 	-textvariable => \$specificComponent,
-)->pack();  
+)->pack(-expand => 1, -fill => 'x');
 
-# label and entry for quantity
-$frame3->Label( 
-	-text       => 'Number of assemblies (limit): ', 
+## subframe2
+# label and entry for species
+$secondSubFrame2->Label( 
+	-text       => 'Species: ', 
 	-background => 'white', 
-)->pack(); 
+)->grid($secondSubFrame2->Entry(-textvariable => \$species),
+-sticky => 'nsew');
 
-$frame3->Entry( 
-	-textvariable => \$quantity,
-)->pack();  
-
-# label and entry for quantity
-$frame3->Label( 
-	-text       => 'Assembly or Project ID: ', 
+#label and entry for date
+$secondSubFrame2->Label( 
+	-text       => 'Assemblies from this date (yyyy-mm-dd): ', 
 	-background => 'white', 
-)->pack(); 
+)->grid($secondSubFrame2->Entry(-textvariable => \$date),
+-sticky=> 'nsew'); 
 
-$frame3->Entry( 
-	-textvariable => \$assemblyPrjID,
-)->pack();
-
-$frame3->Label( 
-	-text       => 'Get a log file: ', 
+#label and entry for taxid
+$secondSubFrame2->Label( 
+	-text       => 'Taxonomy ID (taxID): ', 
 	-background => 'white',
-)->pack(); 
-
-$frame3->Checkbutton(
-	-text => 'yes',
-	-onvalue => 1,
-	-offvalue => 0,
-	-relief => 'raised',
-	-width => 17,
-	-variable => \$outputFile,
-)->pack();
-
-# label and entry for ena
-$frame5->Label( 
-	-text       => 'ENA', 
-	-background => 'white', 
-)->pack(); 
-
-# label and entry for ena
-$frame5->Label( 
-	-text       => 'ENA sequence ID (enaID): ', 
-	-background => 'white', 
-)->pack(); 
-
-$frame5->Entry( 
-	-textvariable => \$enaID,
-)->pack(); 
-
+)->grid($secondSubFrame2->Entry(-textvariable => \$taxID),
+-sticky =>'nsew');  
 
 # label and entry to rename the output
-$frame5->Label( 
+$secondSubFrame2->Label( 
+	-text       => 'Output folder name: ', 
+	-background => 'white', 
+)->grid($secondSubFrame2->Entry(-textvariable => \$output),
+-sticky => 'nsew'); 
+
+# label and entry for quantity
+$secondSubFrame2->Label( 
+	-text       => 'Number of assemblies (limit): ', 
+	-background => 'white', 
+)->grid($secondSubFrame2->Entry(-textvariable => \$quantity),
+-sticky => 'nsew');  
+
+# label and entry for quantity
+$secondSubFrame2->Label( 
+	-text       => 'Assembly or Project ID: ', 
+	-background => 'white', 
+)->grid($secondSubFrame2->Entry(-textvariable => \$assemblyPrjID),
+-sticky => 'nsew');
+
+# label and entry for database
+$secondSubFrame2->Label( 
+	-text       => 'Get the latest assembly_summary for kingdoms: ', 
+	-background => 'white', 
+)->grid($secondSubFrame2->Entry(-textvariable => \$getSummaries),
+-sticky => 'nsew');
+
+
+## ENA frame
+# label and entry for ena
+$frame3->Label( 
+	-text       => 'ENA sequence ID (enaID): ', 
+	-background => 'white', 
+)->grid($frame3->Entry(-textvariable => \$enaID),
+-sticky => 'nsew'); 
+
+
+$frame3->Label( 
 	-text       => 'FASTQ run accession: ', 
 	-background => 'white', 
-)->pack(); 
-
-$frame5->Entry(
-	-textvariable => \$fastqID,
-)->pack(); 
-
-
-
-
+ )->grid( $frame3->Entry(-textvariable => \$fastqID),
+ -sticky => 'nsew'); 
+ 
 ## bottom frame
 # start search button
 $frame4->Button( 
-	-text    => 'Search', 
+	-text    => 'Search',
 	-command => \&search, 
-)->pack();
+)->grid(my $progress = $frame4->ProgressBar(
+	-from   => 0, 
+	-to => 100,   
+	-length => 300, 
+	-colors => [ 0, 'blue',]),
+    -sticky => "nsew"
+);
 
-#progress bar
-my $progress = $frame4->ProgressBar( 
-  -from   => 0, 
-  -to     => 100, 
-  -width  => 25,
-  -length => 150,
-  -colors => [ 0, 'blue',], 
-)->pack(); 
+my @frameList = (
+	$frame3,
+	$frame4,
+	$secondSubFrame2
+);
 
-$frame1->pack(-side => 'top', -fill => 'both');
-$frame2->pack(-side => 'left', -fill => 'both', -expand => 1);
-$frame3->pack(-side => 'right', -fill => 'both', -expand => 1);
-$frame5->pack(-expand => 1);
-$frame4->pack(-side => 'bottom', -fill => 'both');
+foreach my $frame (@frameList) {
+	my ($columns, $rows) = $frame->gridSize();
+	
+	for (my $i = 0; $i < $columns; $i++) {
+		$frame->gridColumnconfigure($i, -weight => 1); 
+	}
+	for (my $i = 0; $i < $rows; $i++) { 
+		$frame->gridRowconfigure($i, -weight => 1); 
+	}
+}
+ 
+
+$frame1->pack(-expand => 1, -fill => 'x');
+$frame2->pack(-expand => 1, -fill => 'x');
+$firstSubFrame2->pack(-expand => 1, -fill => 'x');
+$subSubFrame1->pack(-side => 'left', -expand => 1, -fill => 'both');
+$subSubFrame2->pack(-side => 'right', -expand => 1, -fill => 'both');
+$directoryFrame->pack(-expand => 1, -fill => 'x');
+$kingdomFrame->pack(-expand => 1, -fill => 'x');
+$levelFrame->pack(-expand => 1, -fill => 'x');
+$componentFrame->pack(-expand => 1, -fill => 'x');
+$secondSubFrame2->pack(-expand => 1, -fill => 'x');
+$frame3->pack(-expand => 1, -fill => 'x');
+$frame4->pack(-expand => 1, -fill => 'x');
 
 
 MainLoop;
-
 
 sub search {
 	my $i = 0;
@@ -353,7 +305,13 @@ sub search {
 		undef  $assemblyPrjID;
 	}
 	else {
-		my @optionCharList = ( '-k', '-s', '-taxid', '-q', '-l', '-c', '-o', '-dir', '-date');
+		my @listIndex = $lst->curselection;
+		
+		foreach (@listIndex) {
+			$kingdom = $kingdomList[$_];
+		}
+		
+		my @optionCharList = ( '-k', '-s', '-taxid', '-q', '-l', '-c', '-o', '-dir', '-date', '-get');
 		
 		my %optionHash = (
 			'-k' => $kingdom,
@@ -364,28 +322,40 @@ sub search {
 			'-c' => $components,
 			'-o' => $output,
 			'-dir' => $directoryNcbi,
-			'-date' => $date
+			'-date' => $date,
+			'-get' => $getSummaries
 		);
 		
 		foreach my $option (@optionCharList) {
 			if (defined  $optionHash{$option}) { $command .= " $option \"$optionHash{$option}\""; }
-			$i += 10;
+			$i += 8;
 			$progress->value($i); 
 			$mw->update();
 			sleep 1;
 		}
 	
 		if ($outputFile) { $command.= " -log"; }
-		if ($getSummary) { $command .= " -get"; }
 		
 		print "$command\n";
 		system("$command");
 		
-		undef $getSummary;
+		undef $kingdom;
+		undef $species;
+		undef $taxID;
+		undef $quantity;
+		undef $levelAssembly;
 		undef $components;
+		undef $output;
+		undef $directoryNcbi;
+		undef $date;
+		undef $getSummaries;
+		# foreach my $option (values %optionHash) {
+			# undef $option;
+		# }
 		undef $outputFile;
+
 		
-		$i += 10;
+		$i += 20;
 		$progress->value($i); 
 		$mw->update();
 		sleep 1;
