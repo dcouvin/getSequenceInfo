@@ -121,20 +121,7 @@ my $sraID; # SRA sequence ID
 
 my $assemblyPrjID; # assembly or prj ID
  
-my $log = File::Log->new({
-	debug           => 4,                   
-	logFileName     => 'myLogFile.log',    
-	logFileMode     => '>',                 
-	dateTimeStamp   => 1,                  
-	stderrRedirect  => 1,                   
-	defaultFile     => 0,                  
-	logFileDateTime => 1,                  
-	appName         => 'getSequenceInfo',
-	PIDstamp        => 0,            
-	storeExpText    => 1,                 
-	msgprepend      => '',                 
-	say             => 1,          
-}); # log 
+my $log; # log 
 
 
 if (@ARGV<1) {
@@ -169,7 +156,7 @@ for (my $i = 0; $i <= $#ARGV; $i++) {
 	elsif ($ARGV[$i]=~/-species/i or $ARGV[$i]=~/-s/i) {
 		$species = $ARGV[$i+1];
 	}
-	elsif ($ARGV[$i]=~/-level/i or $ARGV[$i]=~/-l/i) {
+	elsif ($ARGV[$i]=~/-level/i or $ARGV[$i]=~/-le/i) {
 		$assemblyLevel = $ARGV[$i+1];
 	}
 	elsif ($ARGV[$i]=~/-components/i or $ARGV[$i]=~/-c/i) {
@@ -193,8 +180,21 @@ for (my $i = 0; $i <= $#ARGV; $i++) {
 	elsif ($ARGV[$i]=~/-assembly_or_project/i) {
 		$assemblyPrjID = $ARGV[$i+1];
 	}
-	elsif ($ARGV[$i]=~/-removeSummary/i or $ARGV[$i]=~/-remove/i or $ARGV[$i]=~/-r/i) {
-		remove_assembly_summary();
+	elsif ($ARGV[$i]=~/-log/i) {
+		$log = File::Log->new({
+			debug           => 4,                   
+			logFileName     => 'myLogFile.log',    
+			logFileMode     => '>',                 
+			dateTimeStamp   => 1,                  
+			stderrRedirect  => 1,                   
+			defaultFile     => 0,                  
+			logFileDateTime => 1,                  
+			appName         => 'getSequenceInfo',
+			PIDstamp        => 0,            
+			storeExpText    => 1,                 
+			msgprepend      => '',                 
+			say             => 1,          
+		}); 
 	}
 }
 
@@ -219,7 +219,8 @@ if (grep(/^$kingdom$/i, @availableKingdoms)) {
 		
 		foreach my $actualSpecies (@speciesList) {
 			get_assembly_summary_species( $quantity, $releaseDate, $directory,$kingdom, $actualSpecies,
-			\@levelList,  $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $log, $getSummaries, $components);
+			\@levelList,  $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $log, 
+			$getSummaries, $components, $ftpServor);
 		}
 	}
 	elsif ($assemblyTaxid ne "") {
@@ -227,12 +228,14 @@ if (grep(/^$kingdom$/i, @availableKingdoms)) {
 		
 		foreach my $actualID (@taxidList) {
 			get_assembly_summary_species($quantity, $releaseDate, $directory,$kingdom,$species, 
-			\@levelList, $fldSep, $actualOS, $mainFolder, $actualID, $log, $getSummaries, $components);
+			\@levelList, $fldSep, $actualOS, $mainFolder, $actualID, $log, 
+			$getSummaries, $components, $ftpServor);
 		}
 	} 
 	else {
 		get_assembly_summary_species($quantity, $releaseDate, $directory,$kingdom,$species,
-		\@levelList, $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $log, $getSummaries, $components);
+		\@levelList, $fldSep, $actualOS, $mainFolder, $assemblyTaxid, $log, 
+		$getSummaries, $components, $ftpServor);
 	}	
 }
 
@@ -342,11 +345,13 @@ sub program_version {
 }
 #------------------------------------------------------------------------------
 sub get_assembly_summary_species {
-	my ($quantity, $releaseDate, $directory, $kingdom, $species, $levelList, 
-	$fldSep, $actualOS, $mainFolder, $assemblyTaxid, $log, $getSummaries, $components) = @_;
+	my ($quantity, $releaseDate, $directory, $kingdom, $species, $levelList, $fldSep, 
+	$actualOS, $mainFolder, $assemblyTaxid, $log, $getSummaries, $components, $ftpServor) = @_;
 	
 	# assembly_summary.txt file from NCBI FTP site
-	my $assemblySummary = get_summaries($ftpServor, $kingdom, $getSummaries, $directory);
+	#my $assemblySummary = get_summaries($ftpServor, $kingdom, $getSummaries, $directory);
+	
+	my $assemblySummary = download_summaries($directory, $kingdom, $ftpServor, $fldSep, $getSummaries);
 	#lineage folder
 	# my $lineage_file = "/pub/taxonomy/new_taxdump/new_taxdump.tar.gz";
 	
@@ -354,7 +359,7 @@ sub get_assembly_summary_species {
 	my $oldKingdom = ""; 
 	
 	# start of output file
-	$log->msg(1, "download assembly_summary.txt");
+	if ($log) {$log->msg(1, "download assembly_summary.txt");}
 	
 # if ($actualOS =~ /Unix/i) {	
 		#initialiaze tar manipulation
@@ -402,7 +407,7 @@ sub get_assembly_summary_species {
 		}
 	}
 	
-	$log->msg(1,"create kingdom and components repository");
+	if ($log) {$log->msg(1,"create kingdom and components repository");}
 	
 	my %assemblyReportList;
 	my @assemblyRepresentationList = qw/Full Partial/;
@@ -457,7 +462,7 @@ sub get_assembly_summary_species {
 							download_file($ftpServor, $genbankFile);
 							download_file($ftpServor, $assemblyReport);
 							
-							$log->msg(1,"download fasta genbank report file");
+							if ($log) {$log->msg(1,"download fasta genbank report file");}
 						
 							# download sequences and check number of "N" characters
 							my $fileFasta = $gcfName."_genomic.fna.gz";
@@ -467,7 +472,7 @@ sub get_assembly_summary_species {
 								move($ucpFasta, $repositoryFNA) or die "move failed: $!";
 							}
 							
-							$log->msg(1, "unzip fasta file $fileFasta");
+							if ($log) {$log->msg(1, "unzip fasta file $fileFasta");}
 					
 							# download genome report
 							my $fileReport =  $gcfName."_assembly_report.txt";
@@ -484,7 +489,7 @@ sub get_assembly_summary_species {
 								move($ucpGenbank, $repositoryGenbank) or die "move failed: $!";
 							}
 							
-							$log->msg(1, "unzip genbank file $fileGenbank");
+							if ($log) {$log->msg(1, "unzip genbank file $fileGenbank");}
 					
 							# association report and fasta
 							my $fileFastaGenbank = $ucpFasta . "," . $ucpGenbank;
@@ -522,12 +527,12 @@ sub get_assembly_summary_species {
 					rmdir $componentRep or die "failed to remove directory $!:"; 
 				}
 			}
-			$log->msg(1,"No results were found for the following query:");
-			$log->msg(1,"perl $0 @ARGV");
+			if ($log) {$log->msg(1,"No results were found for the following query:");}
+			if ($log) {$log->msg(1,"perl $0 @ARGV");}
 		} 
 		else {
-			$log->msg(1,"Results were found for the following query:");
-			$log->msg(1,"perl $0 @ARGV");
+			if ($log) {$log->msg(1,"Results were found for the following query:");}
+			if ($log) {$log->msg(1,"perl $0 @ARGV");}
 			
 			# write summary files 
 			my %componentsSumHash;
@@ -587,18 +592,18 @@ sub get_assembly_summary_species {
 				write_assembly($reportFile, $fnaFile, $genbankFile, $summary, $repositoryAssembly,
 				\%componentsSumHash, $kingdom,  $actualOS, \@header, $log);
 				
-				$log->msg(1," call write_assembly subroutine");
+				if ($log) {$log->msg(1," call write_assembly subroutine");}
 			}
 			
 			write_html_summary($summary);
 			
-			$log->msg(1,"call write_html_summary subroutine");
+			if ($log) {$log->msg(1,"call write_html_summary subroutine");}
 			
 			if ($components) {
 				my @componentList = keys %componentsSumHash;
 				my %componentFastaHash = create_component_sequence_file($fldSep, $repositoryFNA, \@componentList);
 			
-				if (keys %componentFastaHash) { $log->msg(1,"call create_component_sequence_file subroutine");}
+				if (keys %componentFastaHash && $log) { $log->msg(1,"call create_component_sequence_file subroutine");}
 			
 				foreach my $component (keys %componentFastaHash) { 
 					move($componentFastaHash{$component}, $componentsRepHash{$component}) or die "move failed: $!"; 
@@ -610,19 +615,19 @@ sub get_assembly_summary_species {
 			move($repositoryFNA, $repositoryAssembly . $fldSep . $repositoryFNA) or die "move failed: $!";
 			move($repositoryGenbank, $repositoryAssembly . $fldSep . $repositoryGenbank) or die "move failed: $!";
 			move($repositoryReport  , $repositoryAssembly . $fldSep . $repositoryReport) or die "move failed: $!";
-			$log->msg(1, "move fasta, genbank, report to  query folder");
+			if ($log) {$log->msg(1, "move fasta, genbank, report to  query folder");}
 			
 			if ($components) {
 				for my $component (keys %componentsSumHash) {
 					move($componentsSumHash{$component}, $componentsRepHash{$component}) or die "move failed: $!";
 					move($componentsRepHash{$component}, $repositoryAssembly . $fldSep . $componentsRepHash{$component}) or die "move failed: $!"
 				}
-				$log->msg(1, "move component files to folders");
+				if ($log) {$log->msg(1, "move component files to folders");}
 			}
 			
 			move($repositoryAssembly, $kingdomRep . $fldSep . $repositoryAssembly) or die "move failed: $!";
 
-			$log->msg(1, "move query folder to main folder");
+			if ($log) {$log->msg(1, "move query folder to main folder");}
 			
 			# if ($actualOS =~ /unix/i) { unlink glob "*.dmp"  or die "for file *.dmp $!:"; }
 			unlink glob "*.gz sequence.txt"  or die "$!: for file *.gz sequence.txt";
@@ -702,7 +707,7 @@ sub write_assembly {
 
 	my $classification = get_taxonomic_rank_genbank($genbankFile);
 	
-	$log->msg(1, "get taxonomic rank from genbank file");
+	if ($log) {$log->msg(1, "get taxonomic rank from genbank file");}
 	
 	$GCpercent = gc_percent($seq);
 	my ($ade, $thy, $gua, $cyt, $n, $length) = number_nuc_length_seq($fnaFile);
@@ -714,7 +719,7 @@ sub write_assembly {
 	my $variance = shift_data_variance(@percentList);
 	my $nucleScore = nucle_score($variance, $GCpercent, $atgcRatio, $length);
 	
-	$log->msg(1, "compute GC percent nucleotid percent ATGC ratio NucleScore");
+	if ($log) {$log->msg(1, "compute GC percent nucleotid percent ATGC ratio NucleScore");}
 	
 	open(GBFF, "<", $genbankFile) or die "Error open file $!:";
 	while(<GBFF>) {
@@ -755,7 +760,7 @@ sub write_assembly_component {
 	# check each sequence from (multi-)fasta file
 	my ($seq, $inputfile);
 
-	$log->msg(1, "search specific components");
+	if ($log) {$log->msg(1, "search specific components");}
 
 	# extract sequence details
 	my $seqIO = Bio::SeqIO->new(-format=>'Fasta', -file=>$fnaFile);
@@ -786,7 +791,7 @@ sub write_assembly_component {
 				my $info = $seqID . "\t" . $genomeName ."\t" . $seqDesc . "\t" . $seqLength . "\t" . $status . "\t" . $level ."\t";
 				$info.= $gcpercent."\t". $aPercent ."\t". $tPercent ."\t". $gPercent ."\t". $cPercent . "\n";
 				add_to_file($componentsSumHash{$component}, $info);
-				$log->msg(1, "found component $component");
+				if ($log) {$log->msg(1, "found component $component");}
 			}
 		}
 	}
@@ -849,8 +854,8 @@ sub sequence_ena {
 	if(-d $assemblyRep) { rmtree($assemblyRep); }
 	mkdir $assemblyRep;
 	
-	$log->msg(1, "ENA sequence download\n");
-	$log->msg(1, "Creation of repository: $assemblyRep\n");
+	if ($log) {$log->msg(1, "ENA sequence download\n");}
+	if ($log) {$log->msg(1, "Creation of repository: $assemblyRep\n");}
 	
 	if($sequenceID =~ /^GCA_.*/){
 		($fastaFile, $reportFile) = get_fasta_and_report_sequence_ena_assembly($sequenceID);
@@ -859,12 +864,12 @@ sub sequence_ena {
 		($fastaFile, $reportFile) = get_fasta_and_report_sequence_ena_other($sequenceID);
 	}
 	
-	$log->msg(1, "Download of ENA fasta and report files for sequence: $sequenceID\n");
+	if ($log) {$log->msg(1, "Download of ENA fasta and report files for sequence: $sequenceID\n");}
 	
 	move($fastaFile, $assemblyRep) or die "move failed: $!";
 	move($reportFile, $assemblyRep) or die "move failed: $!";
 	
-	$log->msg(1, "Move fasta and report files to folder\n");
+	if ($log) {$log->msg(1, "Move fasta and report files to folder\n");}
 } 
 #------------------------------------------------------------------------------
 # download fasta sequence and report on ENA with ENA ID 
@@ -1198,9 +1203,7 @@ sub nucleotid_percent {
 # compute ATGC ratio 
 sub atgc_ratio {
 	my ($ade, $thy, $gua, $cyt) = @_;
-	
 	return (($ade + $thy) / ($gua + $cyt));
-	
 }
 #------------------------------------------------------------------------------
 # variance
@@ -1289,7 +1292,7 @@ sub download_ena_fastq {
 	my $digits = substr $sraId, 3;
 	my $fastqRep =  $sraId . "_folder";
 	
-	$log->msg(1, "Start of execution\n");
+	if ($log) {$log->msg(1, "Start of execution\n");}
 
 	if (length $digits == 6) {
 		$dir2 = $sraId;
@@ -1309,7 +1312,7 @@ sub download_ena_fastq {
 		$fastqDir .= $dir1 . "/" . $dir2 . "/" . $sraId . "/";
 	}
 
-	$log->msg(1,  "recreate database folder path\n");
+	if ($log) {$log->msg(1,  "recreate database folder path\n");}
 	
 	my $ftp = Net::FTP->new($enaFtpServor, Debug => 0)
 	or die "Cannot connect to $enaFtpServor";
@@ -1323,7 +1326,7 @@ sub download_ena_fastq {
 	
 	my @fastqFiles = $ftp->ls("$sraId*"); 
 	
-	$log->msg(1, "Search fastq files in path\n");
+	if ($log) {$log->msg(1, "Search fastq files in path\n");}
 	
 	if (!grep(/^$/, @fastqFiles)) {
 		
@@ -1341,10 +1344,10 @@ sub download_ena_fastq {
 		} 
 		#unlink glob "*fastq.gz"  or die "$!: for file *fastq.gz";
 		
-		$log->msg(1, "Download fastq File\n");
+		if ($log) {$log->msg(1, "Download fastq File\n");}
 	}
 
-	$log->msg(1, "End of execution\n");
+	if ($log) {$log->msg(1, "End of execution\n");}
 	
 	$ftp->quit;
 }
@@ -1422,8 +1425,7 @@ sub get_assembly_or_project {
 					gunzip $fileGenbank => $ucpGenbank or die "gunzip failed: $GunzipError\n";
 					$folderHash{$ucpGenbank} = $repositoryGenbank;
 				}
-				
-				
+		
 			}
 		}
 	}
@@ -1432,7 +1434,7 @@ sub get_assembly_or_project {
 	if (keys %folderHash) {
 		if (-e $repositorySequence) {rmtree($repositorySequence);}
 		
-		$log->msg(1, "download files");
+		if ($log) {$log->msg(1, "download files");}
 		
 		mkdir $repositorySequence;
 		mkdir $repositoryFNA;
@@ -1447,7 +1449,7 @@ sub get_assembly_or_project {
 		move($repositoryReport, $repositorySequence . $fldSep. $repositoryReport) or die "error move file $!:";
 		unlink glob "*.gz"  or die "for file *.gz $!:";
 		
-		$log->msg(1, "move file to folder");
+		if ($log) {$log->msg(1, "move file to folder");}
 	} 
 	
 }
@@ -1489,108 +1491,42 @@ sub isModuleInstalled {
 }
 #------------------------------------------------------------------------------
 # download assembly summary
-sub get_summaries {
-	my ($ftpServor, $kingdom, $getSummaries, $directory) = @_;
-	my $newFileName = $directory . "_" . $kingdom . "_assembly_summary.txt";
+sub download_summaries {
+	my ($database, $kingdom, $ftpServor, $fldSep, $getSummaries) = @_;
+	
 	my $assemblySummary = "assembly_summary.txt";
-	my $fileSummary = $newFileName;
-	my $downloadSum;
-	my $uncheckSum;
-	my $actualSummary;
-
-	opendir my $workingDirectory, "./" or die "error open dir $!:";
+	my $assemblySummaryLink;
+	my $fileName;
+	
+	opendir my $workingDirectory, "." . $fldSep or die "error open dir $!:";
 	my @filesList = readdir $workingDirectory; 
 	closedir $workingDirectory;
 	
-	my $found = grep{/$assemblySummary/i} @filesList;
-	if ($found  == 0) { $downloadSum = 1; } 
-	
-	for my $file (@filesList) {
-		if ($file =~ /assembly_summary.txt/i) {
-			$actualSummary = $file;
-			$fileSummary = $actualSummary;
-			if ($getSummaries) {
-				for my $kingdomSummary (split /,/, $getSummaries) {
-					if ($file !~ /$kingdomSummary/i || $file !~ /$directory/i) {
-						$uncheckSum = 1; 
-					}
-				}	
-			} elsif ($file !~ /$kingdom/i || $file !~ /$directory/i) {
-				$uncheckSum = 1; 
-			}	
-		} 
-	}
-	
-	if ($uncheckSum || $downloadSum) {
-		my $downloadKingdom = $kingdom;
-		my @kingdomAddList;
-		my $rename;
-		
-		if (!$getSummaries) { push @kingdomAddList, $kingdom; }
-		
-		if ($getSummaries) {
-			for my $kingdomSummary (split /,/, $getSummaries) {
-				if ($actualSummary && $actualSummary !~ /$kingdomSummary/i) {
-					push @kingdomAddList, $kingdomSummary;
-				}
-				elsif (!$actualSummary) {
-					push @kingdomAddList, $kingdomSummary;
-				}
-				elsif ($actualSummary && $actualSummary !~ /$directory/i) {
-					push @kingdomAddList, $kingdomSummary;
+	if ($getSummaries) {
+		foreach my $summaryKingdom (split /,/, $getSummaries) {
+			foreach my $file (@filesList) {
+				if ($file =~ /assembly_summary.txt/i && $file =~ /$summaryKingdom/i && $file =~ /$database/) {
+					unlink $file or die "error remove file $!:";
+					$assemblySummaryLink = "/genomes/$database/$summaryKingdom/assembly_summary.txt";
+					download_file($ftpServor, $assemblySummaryLink);
+					$fileName = $database . "_" . $summaryKingdom . "_" . "assembly_summary.txt";
+					rename $assemblySummary, $fileName;
+					print "replace file\n";
 				}
 			}
-			$downloadKingdom = $getSummaries;
-			my $kingdomAdd = join("_", @kingdomAddList);
-			$fileSummary = $directory . "_" . $kingdomAdd . "_" . "assembly_summary.txt";
-		}		
-
-		if ($uncheckSum) {
-			if ($actualSummary =~ /$directory/i) {
-				my $addKingdom = "";				
-				if ($actualSummary =~ /genbank_(.*)_assembly_s/i || $actualSummary =~ /refseq_(.*)_assembly_s/i) {
-					$addKingdom = $1;
-				}
-				my $kingdomAdd = join("_", @kingdomAddList);
-				$newFileName = $directory . "_" . $kingdomAdd . "_" . $addKingdom ."_". "assembly_summary.txt";
-				$fileSummary = $actualSummary;
-				$rename = 1;
-			} elsif ($actualSummary) {
-				unlink $actualSummary or die "error remove file $!:";
-				my $kingdomAdd = join("_", @kingdomAddList);
-				$fileSummary = $directory . "_" . $kingdomAdd . "_" . "assembly_summary.txt";
-			}
-		}	
-		
-		foreach my $kingdomSummary (@kingdomAddList) {
-			my $assemblySummaryLink = "/genomes/$directory/$kingdomSummary/assembly_summary.txt";
-			download_file($ftpServor, $assemblySummaryLink);	
-			open (SUM, "<", $assemblySummary) or die "error open file $!:";
-			open (CUMUL, ">>", $fileSummary) or die "error open file $:!";
-			while (<SUM>) {
-				print CUMUL $_;
-			}
-			close (CUMUL) or die "error close file $!:";
-			close (SUM) or die "error close file $!:";
-			unlink $assemblySummary or die "error remove file $!:"; 
 		}
-		if ($rename) {
-			rename $fileSummary, $newFileName;
-			$fileSummary = $newFileName;
-		}		
 	}
-	return $fileSummary;
-}
-#------------------------------------------------------------------------------
-# remove assembly summary
-sub remove_assembly_summary {
-	opendir my $workingDirectory, "./" or die "error open dir $!:";
-	my @filesList = readdir $workingDirectory; 
-	closedir $workingDirectory;
 	
 	foreach my $file (@filesList) {
-		if ($file =~ /assembly_summary.txt/i) {
-			unlink $file or die "error remove file:$!";
+		if ($file =~ /assembly_summary.txt/i && $file =~ /$kingdom/i && $file =~ /$database/) {
+			return $file;
 		}
 	}
+	
+	$assemblySummaryLink = "/genomes/$database/$kingdom/assembly_summary.txt";
+	$fileName = $database . "_" . $kingdom . "_" . "assembly_summary.txt";
+	download_file($ftpServor, $assemblySummaryLink);
+	rename $assemblySummary, $fileName;
+	
+	return $fileName;
 }

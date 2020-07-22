@@ -349,9 +349,6 @@ sub search {
 		undef $directoryNcbi;
 		undef $date;
 		undef $getSummaries;
-		# foreach my $option (values %optionHash) {
-			# undef $option;
-		# }
 		undef $outputFile;
 
 		
