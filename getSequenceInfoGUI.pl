@@ -1,5 +1,12 @@
 #!/usr/bin/perl 
 
+##-----------------------------------
+#  getSequenceInfo GUI version 1
+# 2020/07/24
+# IP Guadeloupe David Couvin, Vincent Moco
+##-----------------------------------
+
+
 
 use warnings; 
 use strict; 
@@ -28,7 +35,7 @@ my $checkScaffold;
 my $specificComponent = "keyword";
 my $components;
 my $assemblyPrjID;
-my $outputFile;
+my $logFile;
 
 
 # window creation 
@@ -49,6 +56,7 @@ my $directoryFrame = $subSubFrame1->Frame(-background => 'white', -borderwidth =
 my $kingdomFrame = $subSubFrame2->Frame(-background => 'white', -borderwidth => '5');
 my $levelFrame = $subSubFrame2->Frame(-background => 'white',  -borderwidth => '5');
 my $componentFrame = $subSubFrame1->Frame(-background => 'white', -borderwidth => '5');
+my $logFrame = $subSubFrame1->Frame(-background => 'white', -borderwidth => '5');
 my $secondSubFrame2 = $frame2->Frame(-background => 'white');
 my $frame3 = $mw->Labelframe(-background => 'white', -text => 'ENA');
 my $frame4 = $mw->Labelframe(-background => 'white');
@@ -137,6 +145,25 @@ $componentFrame->Entry(
 	-textvariable => \$specificComponent,
 )->pack(-expand => 1, -fill => 'x');
 
+# log frame
+$logFrame->Label( 
+	-text       => 'Obtain log file: ',
+	-background => 'white', 
+)->pack(-expand => 1, -fill => 'x'); 
+
+my %logFileHash = (
+	Yes => 1,
+	No => 0,
+);
+
+foreach my $logKey (keys %logFileHash) {
+	$logFrame->Radiobutton(
+		-text => $logKey,
+		-value => $logFileHash{$logKey},
+		-variable => \$logFile,
+	)->pack(-expand => 1, -fill => 'x');
+}
+
 ## subframe2
 # label and entry for species
 $secondSubFrame2->Label( 
@@ -186,7 +213,6 @@ $secondSubFrame2->Label(
 	-background => 'white', 
 )->grid($secondSubFrame2->Entry(-textvariable => \$getSummaries),
 -sticky => 'nsew');
-
 
 ## ENA frame
 # label and entry for ena
@@ -243,6 +269,7 @@ $directoryFrame->pack(-expand => 1, -fill => 'x');
 $kingdomFrame->pack(-expand => 1, -fill => 'x');
 $levelFrame->pack(-expand => 1, -fill => 'x');
 $componentFrame->pack(-expand => 1, -fill => 'x');
+$logFrame->pack(-expand => 1, -fill => 'x');
 $secondSubFrame2->pack(-expand => 1, -fill => 'x');
 $frame3->pack(-expand => 1, -fill => 'x');
 $frame4->pack(-expand => 1, -fill => 'x');
@@ -270,7 +297,7 @@ sub search {
 	
 	if (defined $enaID) {
 		$command .= " -ena $enaID";
-		if ($outputFile) { $command .= " -log"; }
+		if ($logFile) {$command .= " -log";}
 		print "$command\n";	
 		system("$command");
 		$i += 100;
@@ -282,7 +309,7 @@ sub search {
 	}
 	elsif (defined $fastqID) {
 		$command .= " -fastq $fastqID";
-		if ($outputFile) { $command .= " -log"; }
+		if ($logFile) {$command .= " -log";}
 		print "$command\n";	
 		system("$command");
 		$i += 100;
@@ -294,7 +321,7 @@ sub search {
 	}
 	elsif (defined $assemblyPrjID) {
 		$command .= " -assembly_or_project $assemblyPrjID";
-		if ($outputFile) { $command .= " -log"; }
+		if ($logFile) {$command .= " -log";}
 		print "$command\n";	
 		system("$command");
 		$i += 100;
@@ -311,13 +338,13 @@ sub search {
 			$kingdom = $kingdomList[$_];
 		}
 		
-		my @optionCharList = ( '-k', '-s', '-taxid', '-q', '-l', '-c', '-o', '-dir', '-date', '-get');
+		my @optionCharList = ( '-k', '-s', '-taxid', '-n', '-l', '-c', '-o', '-dir', '-date', '-get');
 		
 		my %optionHash = (
 			'-k' => $kingdom,
 			'-s' => $species,
 			'-taxid' => $taxID,
-			'-q' => $quantity,
+			'-n' => $quantity,
 			'-l' => $levelAssembly,
 			'-c' => $components,
 			'-o' => $output,
@@ -334,7 +361,7 @@ sub search {
 			sleep 1;
 		}
 	
-		if ($outputFile) { $command.= " -log"; }
+		if ($logFile) {$command .= " -log";}
 		
 		print "$command\n";
 		system("$command");
@@ -349,9 +376,7 @@ sub search {
 		undef $directoryNcbi;
 		undef $date;
 		undef $getSummaries;
-		undef $outputFile;
 
-		
 		$i += 20;
 		$progress->value($i); 
 		$mw->update();
