@@ -334,6 +334,7 @@ sub help_user_advance {
 		-c or -components [XXX]		allows to select specific components of the assembly (e.g. plasmid, chromosome, ...)
 		-ena [XXX] 			allows to download report and fasta file given a ENA sequence ID 
 		-fastq [XXX]			allows to download FASTQ sequences from ENA given a run accession (https://ena-docs.readthedocs.io/en/latest/faq/archive-generated-files.html)
+		-log				allows to create a log file
 HEREDOC
 }
 #------------------------------------------------------------------------------
