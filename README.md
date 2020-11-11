@@ -12,8 +12,13 @@ perl -v
 
 # Quick Installation
 Please first verify that Perl is installed in your system by following the above requirments.
+You probably need to install the X11 development package first.
+On Debian or Ubuntu, this is the package libx11-dev. ```bash sudo apt-get install libx11-dev ```
+On CentOS, RedHat, or Fedora, this is the package libX11-devel.
 ## Linux or MacOS (Unix)
 ```bash
+git clone https://github.com/dcouvin/getSequenceInfo.git
+cd getSequenceInfo/
 bash install/installer_Unix.sh
 ```
 
