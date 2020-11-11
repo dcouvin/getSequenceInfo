@@ -10,6 +10,7 @@ cpan -f -i LWP::Simple
 cpan -f -i Data::Dumper
 cpan -f -i IO::Uncompress::Gunzip
 cpan -f -i IO::File
+cpan -f -i File::Log
 cpan -f -i Getopt::Long
 cpan -f -i Net::FTP
 ECHO Finished... Please press "Enter" to close this window.
