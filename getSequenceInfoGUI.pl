@@ -3,7 +3,7 @@
 ##-----------------------------------
 #  getSequenceInfo GUI version 1
 # 2020/07/24
-# IP Guadeloupe David Couvin, Vincent Moco
+# IP Guadeloupe Vincent Moco, David Couvin
 ##-----------------------------------
 
 
@@ -61,7 +61,7 @@ my $secondSubFrame2 = $frame2->Frame(-background => 'white');
 my $frame3 = $mw->Labelframe(-background => 'white', -text => 'ENA');
 my $frame4 = $mw->Labelframe(-background => 'white');
 
-my $homeMessage = "Thank you for using getSequenceInfo!\n\n"; 
+my $homeMessage = "Thank you for using getSequenceInfo!\n(Please do not use the tab key)\n"; 
 
 #Affichage d'un texte 
 $frame1 = $mw->Label( 
@@ -279,9 +279,9 @@ MainLoop;
 
 sub search {
 	my $i = 0;
-	
-	my $command = "perl getSequenceInfo.pl";
-	
+	my $scriptName = $0;
+	$scriptName =~ s/GUI//;
+	my $command = "perl $scriptName";  #my $command = "perl getSequenceInfo.pl";
 	
 	foreach my $component (keys %checkComponentHash) {
 		if ($checkComponentHash{$component}) {
